@@ -16,7 +16,11 @@ func TestIntToBigNum(t *testing.T) {
 
     test1 := boringssl.CompareBN(bigboi1, bigboi2)
     if test1 >= 0 {
-        t.Error("Got:", test1, "Expected: -1, 10 to be less than 1000")
+        t.Error("Got:",
+            test1,
+            "Expected: -1,",
+            boringssl.BNToDecStr(bigboi1),
+            boringssl.BNToDecStr(bigboi2))
     }
 
     bigboi3 := boringssl.IntToBN(10000)
@@ -24,21 +28,33 @@ func TestIntToBigNum(t *testing.T) {
 
     test2 := boringssl.CompareBN(bigboi2, bigboi3)
     if test2 >= 0 {
-        t.Error("Got:", test2, "Expected: -1, 1000 to be less than 10000")
+        t.Error("Got:",
+            test2,
+            "Expected: -1,",
+            boringssl.BNToDecStr(bigboi2),
+            boringssl.BNToDecStr(bigboi3))
     }
 
     test3 := boringssl.CompareBN(bigboi3, bigboi2)
     if test3 <= 0 {
-        t.Error("Got:", test3, "Expected: 1, 10000 to be more than 1000")
+        t.Error("Got:",
+            test3,
+            "Expected: 1,",
+            boringssl.BNToDecStr(bigboi3),
+            boringssl.BNToDecStr(bigboi2))
     }
 
     test4 := boringssl.CompareBN(bigboi3, bigboi1)
     if test4 <= 0 {
-        t.Error("Got:", test4, "Expected: 1, 10000 to be more than 10")
+        t.Error("Got:",
+            test4,
+            "Expected: 1,",
+            boringssl.BNToDecStr(bigboi3),
+            boringssl.BNToDecStr(bigboi1))
     }
 }
 
-func TestBigIntToBigNum(t *testing.T) {
+func TestBigIntToBigNumWithSmallInts(t *testing.T) {
     x := big.NewInt(10)
     y := big.NewInt(100)
     z := big.NewInt(1000)
@@ -46,19 +62,6 @@ func TestBigIntToBigNum(t *testing.T) {
     bigx := boringssl.BigIntToBN(x)
     bigy := boringssl.BigIntToBN(y)
     bigz := boringssl.BigIntToBN(z)
-
-    for i := int64(0); i < 100000; i++ {
-        sizeTest := big.NewInt(i)
-
-        bigTest := boringssl.BigIntToBN(sizeTest)
-
-        cString := boringssl.BNToDec(bigTest)
-        goString := sizeTest.String()
-
-        if cString != goString {
-            t.Error("Comparison desync:", goString, cString)
-        }
-    }
 
     defer boringssl.FreeBigNum(bigx)
     defer boringssl.FreeBigNum(bigy)
@@ -68,26 +71,42 @@ func TestBigIntToBigNum(t *testing.T) {
     test1 := boringssl.CompareBN(bigx, bigy)
 
     if test1 >= 0 {
-        t.Error("Got:", test1, "Expected: -1, 10 to be less than 100")
+        t.Error("Got:",
+            test1,
+            "Expected: -1,",
+            boringssl.BNToDecStr(bigx),
+            boringssl.BNToDecStr(bigy))
     }
 
     test2 := boringssl.CompareBN(bigy, bigz)
 
     if test2 >= 0 {
-        t.Error("Got:", test2, "Expected: -1, 100 to be less than 1000")
+        t.Error("Got:",
+            test2,
+            "Expected: -1,",
+            boringssl.BNToDecStr(bigy),
+            boringssl.BNToDecStr(bigz))
     }
 
     // Tests 3 and 4 should both be greater than comparisons.
     test3 := boringssl.CompareBN(bigy, bigx)
 
     if test3 <= 0 {
-        t.Error("Got:", test3, "Expected: 1, 100 to be more than 10")
+        t.Error("Got:",
+            test3,
+            "Expected: 1,",
+            boringssl.BNToDecStr(bigy),
+            boringssl.BNToDecStr(bigx))
     }
 
     test4 := boringssl.CompareBN(bigz, bigy)
 
     if test4 <= 0 {
-        t.Error("Got:", test4, "Expected: 1, 1000 to be more than 100")
+        t.Error("Got:",
+            test4,
+            "Expected: 1,",
+            boringssl.BNToDecStr(bigz),
+            boringssl.BNToDecStr(bigy))
     }
 
     // Test 5 should be an equal to comparison.
@@ -97,13 +116,21 @@ func TestBigIntToBigNum(t *testing.T) {
 
     test5 := boringssl.CompareBN(bigx, bigx2)
     if test5 != 0 {
-        t.Error("Got:", test5, "Expected: 0, 10 to be equal to 10")
+        t.Error("Got:",
+            test5,
+            "Expected: 0,",
+            boringssl.BNToDecStr(bigx),
+            boringssl.BNToDecStr(bigx2))
     }
+}
 
-    // LARGER NUMBERS
+func TestBigIntToBigNumWithMul(t *testing.T) {
+    x := big.NewInt(10)
+    bigx := boringssl.BigIntToBN(x)
+    defer boringssl.FreeBigNum(bigx)
+
     hugeboi := big.NewInt(math.MaxInt64)
     cHugeboi := boringssl.BigIntToBN(hugeboi)
-    t.Log(boringssl.BNToDec(cHugeboi), hugeboi.String())
     defer boringssl.FreeBigNum(cHugeboi)
 
     // Max int64 * 10
@@ -115,8 +142,45 @@ func TestBigIntToBigNum(t *testing.T) {
     biggerboiConverted := boringssl.BigIntToBN(biggerboi)
     defer boringssl.FreeBigNum(biggerboiConverted)
 
-    test6 := boringssl.CompareBN(cBiggerboi, biggerboiConverted)
-    if test6 != 0 {
-        t.Error("Got:", test6, "Expected: 0,", boringssl.BNToDec(cBiggerboi), boringssl.BNToDec(biggerboiConverted))
+    test1 := boringssl.CompareBN(cBiggerboi, biggerboiConverted)
+    if test1 != 0 {
+        t.Error("Got:",
+            test1,
+            "Expected: 0,",
+            boringssl.BNToDecStr(cBiggerboi),
+            boringssl.BNToDecStr(biggerboiConverted))
+    }
+}
+
+func TestRandomRange(t *testing.T) {
+    max := big.NewInt(math.MaxInt64)
+    min := big.NewInt(0)
+
+    cMax := boringssl.BigIntToBN(max)
+    cMin := boringssl.BigIntToBN(min)
+    defer boringssl.FreeBigNum(cMax)
+    defer boringssl.FreeBigNum(cMin)
+
+    cRand := boringssl.RandRangeBN(cMax)
+    defer boringssl.FreeBigNum(cRand)
+
+    test1 := boringssl.CompareBN(cMin, cRand)
+    // The minimum is inclusive, so zero is possible to be equal to.
+    if test1 > 0 {
+        t.Error("Got:",
+            test1,
+            "Expected: -1 or 0,",
+            boringssl.BNToDecStr(cMin),
+            boringssl.BNToDecStr(cRand))
+    }
+
+    test2 := boringssl.CompareBN(cRand, cMax)
+    // The maximum is exclusive, so max is impossible to be equal to.
+    if test2 >= 0 {
+        t.Error("Got:",
+            test2,
+            "Expected: -1,",
+            boringssl.BNToDecStr(cRand),
+            boringssl.BNToDecStr(cMax))
     }
 }
