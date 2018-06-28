@@ -1,15 +1,6 @@
-package boringssl
+package umbral
 
-/*
-#cgo CFLAGS: -I${SRCDIR}/include
-#cgo LDFLAGS: -L${SRCDIR} -lcrypto
-
-#include <stdlib.h>
-#include <openssl/ec.h>
-#include <openssl/bn.h>
-#include <openssl/err.h>
-#include <openssl/obj_mac.h>
-*/
+// #include "shim.h"
 import "C"
 import (
     "unsafe"
@@ -35,13 +26,27 @@ func GetBigNum() *C.BIGNUM {
     return bNum
 }
 
+/*
+func FindECGroups() {
+    for i := 0; i < 1000; i++ {
+        ecGroup := C.EC_GROUP_new_by_curve_name(C.int(i))
+        if unsafe.Pointer(ecGroup) != C.NULL {
+            // Failure
+            log.Fatal("Got:", i)
+        }
+    }
+}
+*/
+
 func SetECGroup() {
     if unsafe.Pointer(globalGroup) == C.NULL {
-        globalGroup = C.EC_GROUP_new_by_curve_name(C.int(SECP256K1))
+        globalGroup = C.EC_GROUP_new_by_curve_name(C.int(415))
+        /*
         if unsafe.Pointer(globalGroup) == C.NULL {
             // Failure
             log.Fatal("Curve group lookup failed")
         }
+        */
     }
 }
 
@@ -50,6 +55,9 @@ func SetECOrder() {
         ecOrder := GetBigNum()
         var bnCtx *C.BN_CTX = C.BN_CTX_new()
         defer FreeBNCTX(bnCtx)
+        if unsafe.Pointer(globalGroup) == C.NULL {
+            SetECGroup()
+        }
         result := int(C.EC_GROUP_get_order(globalGroup, ecOrder, bnCtx))
         if result != 1 {
             // Failure
@@ -430,6 +438,17 @@ func RandRangeBN(max *C.BIGNUM) *C.BIGNUM {
     if result != 1 {
         // Failure
         log.Fatal("Random range returned failure")
+    }
+    return randBN
+}
+
+func RandRangeExBN(min uint32, max *C.BIGNUM) *C.BIGNUM {
+    // randBN must be free later by the calling function.
+    randBN := GetBigNum()
+    result := int(C.BN_rand_range_ex(randBN, C.size_t(min), max))
+    if result != 1 {
+        // Failure
+        log.Fatal("Random range ex returned failure")
     }
     return randBN
 }
