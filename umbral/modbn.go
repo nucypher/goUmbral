@@ -27,7 +27,7 @@ func ExpectedBytesLength(curve Curve) {
     // TODO: Return the size of a modbn given the curve.
 }
 
-func GenRandBN(curve Curve) ModBigNum {
+func GenRandModBN(curve Curve) ModBigNum {
     /*
     Returns a CurveBN object with a cryptographically secure OpenSSL BIGNUM
     based on the given curve.
@@ -38,18 +38,18 @@ func GenRandBN(curve Curve) ModBigNum {
 
     if !BNIsWithinOrder(newRandBN, curve) {
         FreeBigNum(newRandBN)
-        return GenRandBN(curve)
+        return GenRandModBN(curve)
     }
     return ModBigNum{Bignum: newRandBN, Curve: curve}
 }
 
-func FromInt(num int, curve Curve) ModBigNum {
+func Int2ModBN(num int, curve Curve) ModBigNum {
     newBN := IntToBN(num)
 
     return ModBigNum{Bignum: newBN, Curve: curve}
 }
 
-func Hash(bytes []byte, curve Curve) ModBigNum {
+func Hash2ModBN(bytes []byte, curve Curve) ModBigNum {
     if len(bytes) == 0 {
         log.Fatal("No bytes to hash")
     }
@@ -75,7 +75,7 @@ func Hash(bytes []byte, curve Curve) ModBigNum {
     return ModBigNum{Bignum: bignum, Curve: curve}
 }
 
-func FromBytes(data []byte, curve Curve) ModBigNum {
+func Bytes2ModBN(data []byte, curve Curve) ModBigNum {
     if len(data) == 0 {
         log.Fatal("No bytes failure")
     }
