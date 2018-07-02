@@ -1,7 +1,6 @@
 package umbral
 
 import (
-    "../libs/boringssl"
     "golang.org/x/crypto/blake2b"
     "log"
 )
@@ -59,18 +58,18 @@ func Hash2ModBN(bytes []byte, curve Curve) ModBigNum {
     }
     var hashContainer []byte
     blake2b.Sum(hashContainer)
-    hashDigest := boringssl.BytesToBN(hashContainer)
+    hashDigest := BytesToBN(hashContainer)
 
-    oneBN := boringssl.IntToBN(1)
-    defer boringssl.FreeBigNum(oneBN)
+    oneBN := IntToBN(1)
+    defer FreeBigNum(oneBN)
 
     orderMinusOne := SubBN(curve.Order, oneBN)
     defer FreeBigNum(orderMinusOne)
 
-    moddedResult := boringssl.ModBN(hashDigest, orderMinusOne)
-    defer boringssl.FreeBigNum(moddedResult)
+    moddedResult := ModBN(hashDigest, orderMinusOne)
+    defer FreeBigNum(moddedResult)
 
-    bignum := boringssl.AddBN(moddedResult, oneBN)
+    bignum := AddBN(moddedResult, oneBN)
 
     return ModBigNum{Bignum: bignum, Curve: curve}
 }
@@ -90,7 +89,7 @@ func (m ModBigNum) ToBytes() []byte {
 
 func (m ModBigNum) Equals(other ModBigNum) int {
     // -1 less than, 0 is equal to, 1 is greater than
-    return boringssl.CompareBN(m.bignum, other.bignum)
+    return CompareBN(m.Bignum, other.Bignum)
 }
 
 func (m *ModBigNum) Pow(other ModBigNum) {
