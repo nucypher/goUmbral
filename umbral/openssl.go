@@ -369,14 +369,3 @@ func RandRangeBN(max *C.BIGNUM) *C.BIGNUM {
     }
     return randBN
 }
-
-func RandRangeExBN(min uint32, max *C.BIGNUM) *C.BIGNUM {
-    // randBN must be free later by the calling function.
-    randBN := GetBigNum()
-    result := int(C.BN_rand_range(randBN, C.uint32_t(min), max))
-    if result != 1 {
-        // Failure
-        log.Fatal("Random range ex returned failure")
-    }
-    return randBN
-}

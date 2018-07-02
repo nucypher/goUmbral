@@ -11,53 +11,45 @@ Represents a BoringSSL Bignum modulo the order of a curve. Some of these
 operations will only work with prime numbers
 */
 
-// TODO: Cleanup this place for single curve support.
 type ModBigNum struct {
-   bignum boringssl.BigNum
-   curveNid int
-   group boringssl.ECGroup
-   order boringssl.BigNum
+   Bignum BigNum
+   Curve Curve
 }
 
-func GetNewModBN(cNum boringssl.BigNum, nid int, ecGroup boringssl.ECGroup, ecOrder boringssl.BigNum) ModBigNum {
-    if nid != 0 {
-        if !boringssl.BNIsWithinOrder(cNum, nid) {
-            log.Fatal("The provided BIGNUM is not on the provided curve.")
-        }
+func GetNewModBN(cNum BigNum, curve Curve) ModBigNum {
+    if !BNIsWithinOrder(cNum, curve) {
+        log.Fatal("The provided BIGNUM is not on the provided curve.")
     }
-    return ModBigNum{bignum: cNum,
-        curveNid: nid, group: ecGroup, order: ecOrder}
+    return ModBigNum{Bignum: cNum, Curve: curve}
 }
 
-func GenRandBN() ModBigNum {
+func ExpectedBytesLength(curve Curve) {
+    // TODO: Return the size of a modbn given the curve.
+}
+
+func GenRandBN(curve Curve) ModBigNum {
     /*
     Returns a CurveBN object with a cryptographically secure OpenSSL BIGNUM
     based on the given curve.
     */
-    ecGroup := boringssl.GetECGroup()
-    ecOrder := boringssl.GetECOrder()
 
     // newRandBN needs to be from 1 inclusive to curve exclusive
-    newRandBN := boringssl.RandRangeExBN(1, ecOrder)
+    newRandBN := RandRangeBN(curve.Order)
 
-    if !boringssl.BNIsWithinOrder(newRandBN, boringssl.SECP256K1) {
-        return GenRandBN()
+    if !BNIsWithinOrder(newRandBN, curve) {
+        FreeBigNum(newRandBN)
+        return GenRandBN(curve)
     }
-    return ModBigNum{bignum: newRandBN, curveNid: boringssl.SECP256K1,
-        group: ecGroup, order: ecOrder}
+    return ModBigNum{Bignum: newRandBN, Curve: curve}
 }
 
-func FromInt(num int) ModBigNum {
-    ecGroup := boringssl.GetECGroup()
-    ecOrder := boringssl.GetECOrder()
+func FromInt(num int, curve Curve) ModBigNum {
+    newBN := IntToBN(num)
 
-    newBN := boringssl.IntToBN(num)
-
-    return ModBigNum{bignum: newBN, curveNid: boringssl.SECP256K1,
-        group: ecGroup, order: ecOrder}
+    return ModBigNum{Bignum: newBN, Curve: curve}
 }
 
-func Hash(bytes []byte) ModBigNum {
+func Hash(bytes []byte, curve Curve) ModBigNum {
     if len(bytes) == 0 {
         log.Fatal("No bytes to hash")
     }
@@ -72,82 +64,88 @@ func Hash(bytes []byte) ModBigNum {
     oneBN := boringssl.IntToBN(1)
     defer boringssl.FreeBigNum(oneBN)
 
-    orderMinusOne := boringssl.SubBN(boringssl.GetECOrder(), oneBN)
-    defer boringssl.FreeBigNum(orderMinusOne)
+    orderMinusOne := SubBN(curve.Order, oneBN)
+    defer FreeBigNum(orderMinusOne)
 
     moddedResult := boringssl.ModBN(hashDigest, orderMinusOne)
     defer boringssl.FreeBigNum(moddedResult)
 
     bignum := boringssl.AddBN(moddedResult, oneBN)
 
-    return ModBigNum{bignum: bignum, curveNid: boringssl.SECP256K1,
-        group: boringssl.GetECGroup(), order: boringssl.GetECOrder()}
+    return ModBigNum{Bignum: bignum, Curve: curve}
 }
 
-func FromBytes(data []byte) ModBigNum {
+func FromBytes(data []byte, curve Curve) ModBigNum {
     if len(data) == 0 {
         log.Fatal("No bytes failure")
     }
-    bignum := boringssl.BytesToBN(data)
-    return ModBigNum{bignum: bignum, curveNid: boringssl.SECP256K1,
-        group: boringssl.GetECGroup(), order: boringssl.GetECOrder()}
+
+    bignum := BytesToBN(data)
+    return ModBigNum{Bignum: bignum, Curve: curve}
 }
 
-func (m *ModBigNum) ToBytes() []byte {
-    return boringssl.BNToBytes(m.bignum)
+func (m ModBigNum) ToBytes() []byte {
+    return BNToBytes(m.Bignum)
 }
 
-func (m *ModBigNum) Equals(other *ModBigNum) int {
+func (m ModBigNum) Equals(other ModBigNum) int {
     // -1 less than, 0 is equal to, 1 is greater than
     return boringssl.CompareBN(m.bignum, other.bignum)
 }
 
-func (m *ModBigNum) Pow(other *ModBigNum) ModBigNum {
-    power := boringssl.ModExpBN(m.bignum, other.bignum, m.order)
+func (m *ModBigNum) Pow(other ModBigNum) {
+    power := ModExpBN(m.Bignum, other.Bignum, m.Curve.Order)
+    FreeBigNum(m.Bignum)
 
-    return ModBigNum{bignum: power, curveNid: m.curveNid,
-        group: m.group, order: m.order}
+    m.Bignum = power
 }
 
-func (m *ModBigNum) Mul(other *ModBigNum) ModBigNum {
-    product := boringssl.ModMulBN(m.bignum, other.bignum, m.order)
+func (m *ModBigNum) Mul(other ModBigNum) {
+    product := ModMulBN(m.Bignum, other.Bignum, m.Curve.Order)
+    FreeBigNum(m.Bignum)
 
-    return ModBigNum{bignum: product, curveNid: m.curveNid,
-        group: m.group, order: m.order}
+    m.Bignum = product
 }
 
-func (m *ModBigNum) Div(other *ModBigNum) ModBigNum {
-    tmpBN := boringssl.ModInverseBN(other.bignum, m.order)
-    product := boringssl.ModMulBN(m.bignum, tmpBN, m.order)
+func (m *ModBigNum) Div(other ModBigNum) {
+    tmpBN := ModInverseBN(other.Bignum, m.Curve.Order)
+    defer FreeBigNum(tmpBN)
 
-    return ModBigNum{bignum: product, curveNid: m.curveNid,
-        group: m.group, order: m.order}
+    product := ModMulBN(m.Bignum, tmpBN, m.Curve.Order)
+
+    FreeBigNum(m.Bignum)
+
+    m.Bignum = product
 }
 
-func (m *ModBigNum) Add(other *ModBigNum) ModBigNum {
-    sum := boringssl.ModAddBN(m.bignum, other.bignum, m.order)
+func (m *ModBigNum) Add(other ModBigNum) {
+    sum := ModAddBN(m.Bignum, other.Bignum, m.Curve.Order)
 
-    return ModBigNum{bignum: sum, curveNid: m.curveNid,
-        group: m.group, order: m.order}
+    FreeBigNum(m.Bignum)
+
+    m.Bignum = sum
 }
 
-func (m *ModBigNum) Sub(other *ModBigNum) ModBigNum {
-    sub := boringssl.ModSubBN(m.bignum, other.bignum, m.order)
+func (m *ModBigNum) Sub(other ModBigNum) {
+    sub := ModSubBN(m.Bignum, other.Bignum, m.Curve.Order)
 
-    return ModBigNum{bignum: sub, curveNid: m.curveNid,
-        group: m.group, order: m.order}
+    FreeBigNum(m.Bignum)
+
+    m.Bignum = sub
 }
 
-func (m *ModBigNum) Inverse() ModBigNum {
-    inverse := boringssl.ModInverseBN(m.bignum, m.order)
+func (m *ModBigNum) Inverse() {
+    inverse := ModInverseBN(m.Bignum, m.Curve.Order)
 
-    return ModBigNum{bignum: inverse, curveNid: m.curveNid,
-        group: m.group, order: m.order}
+    FreeBigNum(m.Bignum)
+
+    m.Bignum = inverse
 }
 
-func (m *ModBigNum) Mod(other *ModBigNum) ModBigNum {
-    rem := boringssl.NNModBN(m.bignum, other.bignum)
+func (m *ModBigNum) Mod(other ModBigNum) {
+    rem := NNModBN(m.Bignum, other.Bignum)
 
-    return ModBigNum{bignum: rem, curveNid: m.curveNid,
-        group: m.group, order: m.order}
+    FreeBigNum(m.Bignum)
+
+    m.Bignum = rem
 }
