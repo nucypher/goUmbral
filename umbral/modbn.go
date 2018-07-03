@@ -87,7 +87,11 @@ func (m ModBigNum) ToBytes() []byte {
     return BNToBytes(m.Bignum)
 }
 
-func (m ModBigNum) Equals(other ModBigNum) int {
+func (m ModBigNum) Equals(other ModBigNum) bool {
+    return CompareBN(m.Bignum, other.Bignum) == 0
+}
+
+func (m ModBigNum) Compare(other ModBigNum) int {
     // -1 less than, 0 is equal to, 1 is greater than
     return CompareBN(m.Bignum, other.Bignum)
 }
