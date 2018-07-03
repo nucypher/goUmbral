@@ -6,14 +6,11 @@ import (
     "log"
 )
 
-// primCurve typedef allows for compile time type checking.
-type primCurve int
-
 // Supported curves
 const (
-    SECP256R1 primCurve = 415
-    SECP256K1 primCurve = 714
-    SECP384R1 primCurve = 715
+    SECP256R1 = C.NID_X9_62_prime256v1
+    SECP256K1 = C.NID_secp256k1
+    SECP384R1 = C.NID_secp384r1
 )
 
 type Curve struct {
@@ -23,23 +20,23 @@ type Curve struct {
     Generator ECPoint
 }
 
-func GetNewCurve(prim primCurve) Curve {
-    // Do not use cast from an int to a primCurve with an unsupported curve nid.
+func GetNewCurve(nid C.int) Curve {
+    // Do not use cast from an int to a C.int with an unsupported curve nid.
     // Use the constant curve values above instead.
 
     // Runtime check below just to be sure.
     // Could default to a certain curve instead of closing.
-    switch prim {
+    switch nid {
     case SECP256R1:
     case SECP256K1:
     case SECP384R1:
     default:
-        log.Fatal("The curve:", prim, "is not supported.")
+        log.Fatal("The curve:", int(nid), "is not supported.")
     }
-    group := GetECGroupByCurveNID(int(prim))
+    group := GetECGroupByCurveNID(int(nid))
     order := GetECOrderByGroup(group)
     generator := GetECGeneratorByGroup(group)
-    return Curve{NID: int(prim), Group: group, Order: order, Generator: generator}
+    return Curve{NID: int(nid), Group: group, Order: order, Generator: generator}
 }
 
 func (m Curve) Equals(other Curve) bool {
