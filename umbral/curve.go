@@ -3,7 +3,7 @@ package umbral
 // #include "shim.h"
 import "C"
 import (
-    "log"
+    "errors"
 )
 
 // Supported curves
@@ -20,7 +20,7 @@ type Curve struct {
     Generator ECPoint
 }
 
-func GetNewCurve(nid C.int) Curve {
+func GetNewCurve(nid C.int) (Curve, error) {
     // Do not use cast from an int to a C.int with an unsupported curve nid.
     // Use the constant curve values above instead.
 
@@ -31,12 +31,12 @@ func GetNewCurve(nid C.int) Curve {
     case SECP256K1:
     case SECP384R1:
     default:
-        log.Fatal("The curve:", int(nid), "is not supported.")
+        return Curve{}, errors.New("This curve is not supported. Please use one of the constant curves defined in curve.go.")
     }
     group := GetECGroupByCurveNID(int(nid))
     order := GetECOrderByGroup(group)
     generator := GetECGeneratorByGroup(group)
-    return Curve{NID: int(nid), Group: group, Order: order, Generator: generator}
+    return Curve{NID: int(nid), Group: group, Order: order, Generator: generator}, nil
 }
 
 func (m Curve) Equals(other Curve) bool {

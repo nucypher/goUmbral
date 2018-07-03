@@ -261,7 +261,6 @@ func ModExpBN(cBN1, cBN2, mod *C.BIGNUM) *C.BIGNUM {
     WARNING: Only in constant time if BN_FLG_CONSTTIME is set on the BN.
     */
     power := GetBigNum()
-    defer FreeBigNum(power)
 
     bnCtx := C.BN_CTX_new()
     defer FreeBNCTX(bnCtx)

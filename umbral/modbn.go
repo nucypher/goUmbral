@@ -1,8 +1,11 @@
 package umbral
 
+// #include "shim.h"
+import "C"
 import (
+    "unsafe"
     "golang.org/x/crypto/blake2b"
-    "log"
+    "errors"
 )
 
 /*
@@ -15,18 +18,18 @@ type ModBigNum struct {
    Curve Curve
 }
 
-func GetNewModBN(cNum BigNum, curve Curve) ModBigNum {
+func GetNewModBN(cNum BigNum, curve Curve) (ModBigNum, error) {
     if !BNIsWithinOrder(cNum, curve) {
-        log.Fatal("The provided BIGNUM is not on the provided curve.")
+        return ModBigNum{}, errors.New("The provided BIGNUM is not on the provided curve.")
     }
-    return ModBigNum{Bignum: cNum, Curve: curve}
+    return ModBigNum{Bignum: cNum, Curve: curve}, nil
 }
 
 func ExpectedBytesLength(curve Curve) {
     // TODO: Return the size of a modbn given the curve.
 }
 
-func GenRandModBN(curve Curve) ModBigNum {
+func GenRandModBN(curve Curve) (ModBigNum, error) {
     /*
     Returns a CurveBN object with a cryptographically secure OpenSSL BIGNUM
     based on the given curve.
@@ -39,22 +42,22 @@ func GenRandModBN(curve Curve) ModBigNum {
         FreeBigNum(newRandBN)
         return GenRandModBN(curve)
     }
-    return ModBigNum{Bignum: newRandBN, Curve: curve}
+    return ModBigNum{Bignum: newRandBN, Curve: curve}, nil
 }
 
-func Int2ModBN(num int, curve Curve) ModBigNum {
+func Int2ModBN(num int, curve Curve) (ModBigNum, error) {
     newBN := IntToBN(num)
 
-    return ModBigNum{Bignum: newBN, Curve: curve}
+    return ModBigNum{Bignum: newBN, Curve: curve}, nil
 }
 
-func Hash2ModBN(bytes []byte, curve Curve) ModBigNum {
+func Hash2ModBN(bytes []byte, curve Curve) (ModBigNum, error) {
     if len(bytes) == 0 {
-        log.Fatal("No bytes to hash")
+        return ModBigNum{}, errors.New("No bytes to hash")
     }
     blake2b, err := blake2b.New(64, bytes)
     if err != nil {
-        log.Fatal(err)
+        return ModBigNum{}, err
     }
     var hashContainer []byte
     blake2b.Sum(hashContainer)
@@ -71,16 +74,16 @@ func Hash2ModBN(bytes []byte, curve Curve) ModBigNum {
 
     bignum := AddBN(moddedResult, oneBN)
 
-    return ModBigNum{Bignum: bignum, Curve: curve}
+    return ModBigNum{Bignum: bignum, Curve: curve}, nil
 }
 
-func Bytes2ModBN(data []byte, curve Curve) ModBigNum {
+func Bytes2ModBN(data []byte, curve Curve) (ModBigNum, error) {
     if len(data) == 0 {
-        log.Fatal("No bytes failure")
+        return ModBigNum{}, errors.New("No bytes failure")
     }
 
     bignum := BytesToBN(data)
-    return ModBigNum{Bignum: bignum, Curve: curve}
+    return ModBigNum{Bignum: bignum, Curve: curve}, nil
 }
 
 func (m ModBigNum) ToBytes() []byte {
