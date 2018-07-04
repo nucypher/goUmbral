@@ -99,59 +99,156 @@ func (m ModBigNum) Compare(other ModBigNum) int {
     return CompareBN(m.Bignum, other.Bignum)
 }
 
-func (m *ModBigNum) Pow(other ModBigNum) {
-    power := ModExpBN(m.Bignum, other.Bignum, m.Curve.Order)
+func (m *ModBigNum) Pow(other ModBigNum) error {
+    /*
+    Performs a BN_mod_exp on two BIGNUMS.
+    WARNING: Only in constant time if BN_FLG_CONSTTIME is set on the BN.
+    */
+    power := GetBigNum()
+
+    bnCtx := C.BN_CTX_new()
+    defer FreeBNCTX(bnCtx)
+
+    bnMontCtx := TmpBNMontCTX(m.Curve.Order)
+    defer FreeBNMontCTX(bnMontCtx)
+    result := C.BN_mod_exp_mont_consttime(power,
+        m.Bignum, other.Bignum, m.Curve.Order, bnCtx, bnMontCtx)
+
+    if result != 1 {
+        return errors.New("BN_mod_exp failure")
+    }
+
     FreeBigNum(m.Bignum)
 
     m.Bignum = power
+    return nil
 }
 
-func (m *ModBigNum) Mul(other ModBigNum) {
-    product := ModMulBN(m.Bignum, other.Bignum, m.Curve.Order)
+func (m *ModBigNum) Mul(other ModBigNum) error {
+    /*
+    Performs a BN_mod_mul between two BIGNUMS.
+    */
+    product := GetBigNum()
+
+    bnCtx := C.BN_CTX_new()
+    defer FreeBNCTX(bnCtx)
+
+    result := C.BN_mod_mul(product, m.Bignum, other.Bignum, m.Curve.Order, bnCtx)
+    if result != 1 {
+        return errors.New("BN_mod_mul failure")
+    }
     FreeBigNum(m.Bignum)
 
     m.Bignum = product
+    return nil
 }
 
-func (m *ModBigNum) Div(other ModBigNum) {
-    tmpBN := ModInverseBN(other.Bignum, m.Curve.Order)
-    defer FreeBigNum(tmpBN)
+func (m *ModBigNum) Div(other ModBigNum) error {
+    tmpBN, err := other.Copy()
+    if err != nil {
+        return err
+    }
 
-    product := ModMulBN(m.Bignum, tmpBN, m.Curve.Order)
+    err = tmpBN.Inverse()
+    if err != nil {
+        return err
+    }
 
-    FreeBigNum(m.Bignum)
+    err = m.Mul(tmpBN)
+    if err != nil {
+        return err
+    }
 
-    m.Bignum = product
+    return nil
 }
 
-func (m *ModBigNum) Add(other ModBigNum) {
-    sum := ModAddBN(m.Bignum, other.Bignum, m.Curve.Order)
+func (m *ModBigNum) Add(other ModBigNum) error {
+    sum := GetBigNum()
+
+    bnCtx := C.BN_CTX_new()
+    defer FreeBNCTX(bnCtx)
+
+    result := C.BN_mod_add(sum, m.Bignum, other.Bignum, m.Curve.Order, bnCtx)
+    if result != 1 {
+        return errors.New("BN_mod_add failure")
+    }
 
     FreeBigNum(m.Bignum)
 
     m.Bignum = sum
+    return nil
 }
 
-func (m *ModBigNum) Sub(other ModBigNum) {
-    sub := ModSubBN(m.Bignum, other.Bignum, m.Curve.Order)
+func (m *ModBigNum) Sub(other ModBigNum) error {
+    sub := GetBigNum()
+
+    bnCtx := C.BN_CTX_new()
+    defer FreeBNCTX(bnCtx)
+
+    result := C.BN_mod_sub(sub, m.Bignum, other.Bignum, m.Curve.Order, bnCtx)
+    if result != 1 {
+        return errors.New("BN_mod_sub failure")
+    }
 
     FreeBigNum(m.Bignum)
 
     m.Bignum = sub
+    return nil
 }
 
-func (m *ModBigNum) Inverse() {
-    inverse := ModInverseBN(m.Bignum, m.Curve.Order)
+func (m *ModBigNum) Inverse() error {
+    inverse := GetBigNum()
+
+    bnCtx := C.BN_CTX_new()
+    defer FreeBNCTX(bnCtx)
+
+    result := C.BN_mod_inverse(inverse, m.Bignum, m.Curve.Order, bnCtx)
+
+    if unsafe.Pointer(result) == C.NULL {
+        return errors.New("BN_mod_inverse failure")
+    }
 
     FreeBigNum(m.Bignum)
 
     m.Bignum = inverse
+    return nil
 }
 
-func (m *ModBigNum) Mod(other ModBigNum) {
-    rem := NNModBN(m.Bignum, other.Bignum)
+func (m *ModBigNum) Mod(other ModBigNum) error {
+    rem := GetBigNum()
+
+    bnCtx := C.BN_CTX_new()
+    defer FreeBNCTX(bnCtx)
+
+    result := C.BN_nnmod(rem, m.Bignum, other.Bignum, bnCtx)
+    if result != 1 {
+        return errors.New("BN_nnmod failure")
+    }
 
     FreeBigNum(m.Bignum)
 
     m.Bignum = rem
+    return nil
+}
+
+func (m ModBigNum) Copy() (ModBigNum, error) {
+    // Deep copy of a ModBigNum.
+    bn := C.BN_dup(m.Bignum)
+    if unsafe.Pointer(bn) == C.NULL {
+        return ModBigNum{}, errors.New("BN_dup failure")
+    }
+    group := C.EC_GROUP_dup(m.Curve.Group)
+    if unsafe.Pointer(group) == C.NULL {
+        return ModBigNum{}, errors.New("EC_GROUP_dup failure")
+    }
+    order := C.BN_dup(m.Curve.Order)
+    if unsafe.Pointer(order) == C.NULL {
+        return ModBigNum{}, errors.New("BN_dup failure")
+    }
+    generator := C.EC_POINT_dup(m.Curve.Generator, group)
+    if unsafe.Pointer(generator) == C.NULL {
+        return ModBigNum{}, errors.New("EC_POINT_dup failure")
+    }
+    curve := Curve{m.Curve.NID, group, order, generator}
+    return ModBigNum{Bignum: bn, Curve: curve}, nil
 }
