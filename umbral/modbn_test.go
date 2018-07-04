@@ -5,6 +5,7 @@ import (
     "math/big"
     "encoding/binary"
     "testing"
+    "math"
 )
 
 func TestNewModBN(t *testing.T) {
@@ -95,14 +96,9 @@ func TestHash2BN(t *testing.T) {
         }
 
         // Hash the number with blake2b and convert to Go big.Int.
-        blake2b, err := blake2b.New(64, bs)
-        if err != nil {
-            t.Error(err)
-        }
-        var hashContainer []byte
-        blake2b.Sum(hashContainer)
+        hash := blake2b.Sum512(bs)
         goBN := big.NewInt(0)
-        goBN.SetBytes(hashContainer)
+        goBN.SetBytes(hash[:])
 
         // Convert the order to Go big.Int.
         goOrder := big.NewInt(0)
@@ -135,14 +131,15 @@ func TestHash2BN(t *testing.T) {
             t.Error(err)
         }
         _, err = Hash2ModBN(bs, curve)
-        if err == nil {
-            t.Error("An empty byte array returned a valid bignum.")
+        if err != nil {
+            t.Error(err)
         }
     })
 
     t.Run("bs>64", func(t *testing.T) {
-        // Test a key size greater than 64 bytes long
-        bs := make([]byte, 128)
+        // Should support byte arrays up to 4GB.
+        // bs := make([]byte, math.MaxInt32) - This would test a byte array that is size 2.1 billion, or 2.1GB.
+        bs := make([]byte, math.MaxInt16)
         bs[127] = byte(42)
         bs[100] = byte(52)
         curve, err := GetNewCurve(SECP384R1)
@@ -150,8 +147,8 @@ func TestHash2BN(t *testing.T) {
             t.Error(err)
         }
         _, err = Hash2ModBN(bs, curve)
-        if err == nil {
-            t.Error("An byte array of 128 returned a valid bignum.")
+        if err != nil {
+            t.Error(err)
         }
     })
 }

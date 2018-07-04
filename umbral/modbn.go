@@ -52,16 +52,8 @@ func Int2ModBN(num int, curve Curve) (ModBigNum, error) {
 }
 
 func Hash2ModBN(bytes []byte, curve Curve) (ModBigNum, error) {
-    if len(bytes) == 0 {
-        return ModBigNum{}, errors.New("No bytes to hash")
-    }
-    blake2b, err := blake2b.New(64, bytes)
-    if err != nil {
-        return ModBigNum{}, err
-    }
-    var hashContainer []byte
-    blake2b.Sum(hashContainer)
-    hashDigest := BytesToBN(hashContainer)
+    hash := blake2b.Sum512(bytes)
+    hashBN := BytesToBN(hash[:])
 
     oneBN := IntToBN(1)
     defer FreeBigNum(oneBN)
@@ -69,7 +61,7 @@ func Hash2ModBN(bytes []byte, curve Curve) (ModBigNum, error) {
     orderMinusOne := SubBN(curve.Order, oneBN)
     defer FreeBigNum(orderMinusOne)
 
-    moddedResult := ModBN(hashDigest, orderMinusOne)
+    moddedResult := ModBN(hashBN, orderMinusOne)
     defer FreeBigNum(moddedResult)
 
     bignum := AddBN(moddedResult, oneBN)
