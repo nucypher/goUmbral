@@ -47,6 +47,9 @@ func GenRandModBN(curve Curve) (ModBigNum, error) {
 
 func Int2ModBN(num int, curve Curve) (ModBigNum, error) {
     newBN := IntToBN(num)
+    if !BNIsWithinOrder(newBN, curve) {
+        return ModBigNum{}, errors.New("Bignum is not within the curve")
+    }
 
     return ModBigNum{Bignum: newBN, Curve: curve}, nil
 }
@@ -75,6 +78,10 @@ func Bytes2ModBN(data []byte, curve Curve) (ModBigNum, error) {
     }
 
     bignum := BytesToBN(data)
+    if !BNIsWithinOrder(bignum, curve) {
+        return ModBigNum{}, errors.New("Bignum is not within the curve")
+    }
+
     return ModBigNum{Bignum: bignum, Curve: curve}, nil
 }
 
