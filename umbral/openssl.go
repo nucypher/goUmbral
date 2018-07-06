@@ -152,17 +152,17 @@ func TmpBNMontCTX(modulus BigNum) BNMontCtx {
     return montCtx
 }
 
-func IntToBN(sInt int) *C.BIGNUM {
+func IntToBN(sInt int) BigNum {
     bInt := big.NewInt(int64(sInt))
     return BigIntToBN(bInt)
 }
 
-func BigIntToBN(bInt *big.Int) *C.BIGNUM {
+func BigIntToBN(bInt *big.Int) BigNum {
     goIntAsBytes := bInt.Bytes()
     return BytesToBN(goIntAsBytes)
 }
 
-func BytesToBN(bytes []byte) *C.BIGNUM {
+func BytesToBN(bytes []byte) BigNum {
     cBytes := C.CBytes(bytes)
     defer C.free(cBytes)
     // cBN must be freed later by the calling function.
@@ -174,7 +174,7 @@ func BytesToBN(bytes []byte) *C.BIGNUM {
     return cBN
 }
 
-func BNToBytes(cBN *C.BIGNUM) []byte {
+func BNToBytes(cBN BigNum) []byte {
     size := SizeOfBN(cBN)
     space := make([]byte, size)
     cSpace := C.CBytes(space)
@@ -193,11 +193,11 @@ func SizeOfBN(cBN BigNum) int {
     return int((C.BN_num_bits(cBN)+7)/8)
 }
 
-func CompareBN(cBN1, cBN2 *C.BIGNUM) int {
+func CompareBN(cBN1, cBN2 BigNum) int {
     return int(C.BN_cmp(cBN1, cBN2))
 }
 
-func MultiplyBN(cBN1, cBN2 *C.BIGNUM) *C.BIGNUM {
+func MultiplyBN(cBN1, cBN2 BigNum) BigNum {
     // newBN must be freed later by the calling function.
     newBN := GetBigNum()
     ctx := C.BN_CTX_new()
@@ -211,7 +211,7 @@ func MultiplyBN(cBN1, cBN2 *C.BIGNUM) *C.BIGNUM {
     return newBN
 }
 
-func AddBN(cBN1, cBN2 *C.BIGNUM) *C.BIGNUM {
+func AddBN(cBN1, cBN2 BigNum) BigNum {
     // newBN must be free later by the calling function.
     newBN := GetBigNum()
     result := C.BN_add(newBN, cBN1, cBN2)
@@ -221,7 +221,7 @@ func AddBN(cBN1, cBN2 *C.BIGNUM) *C.BIGNUM {
     return newBN
 }
 
-func SubBN(cBN1, cBN2 *C.BIGNUM) *C.BIGNUM {
+func SubBN(cBN1, cBN2 BigNum) BigNum {
     // newBN must be free later by the calling function.
     newBN := GetBigNum()
     result := C.BN_sub(newBN, cBN1, cBN2)
@@ -231,7 +231,7 @@ func SubBN(cBN1, cBN2 *C.BIGNUM) *C.BIGNUM {
     return newBN
 }
 
-func DivBN(numerator, divisor *C.BIGNUM) (*C.BIGNUM, *C.BIGNUM) {
+func DivBN(numerator, divisor BigNum) (BigNum, BigNum) {
     quotient := GetBigNum()
     rem := GetBigNum()
 
@@ -245,7 +245,7 @@ func DivBN(numerator, divisor *C.BIGNUM) (*C.BIGNUM, *C.BIGNUM) {
     return quotient, rem
 }
 
-func ModBN(numerator, divisor *C.BIGNUM) *C.BIGNUM {
+func ModBN(numerator, divisor BigNum) BigNum {
     bnCtx := C.BN_CTX_new()
     defer C.BN_CTX_free(bnCtx)
     // This is equivalent to C.BN_mod(bignum, hashDigest, orderMinusOne, bnCtx)
@@ -255,111 +255,14 @@ func ModBN(numerator, divisor *C.BIGNUM) *C.BIGNUM {
     return rem
 }
 
-func ModExpBN(cBN1, cBN2, mod *C.BIGNUM) *C.BIGNUM {
-    /*
-    Performs a BN_mod_exp on two BIGNUMS.
-    WARNING: Only in constant time if BN_FLG_CONSTTIME is set on the BN.
-    */
-    power := GetBigNum()
-    defer FreeBigNum(power)
-
-    bnCtx := C.BN_CTX_new()
-    defer FreeBNCTX(bnCtx)
-
-    bnMontCtx := TmpBNMontCTX(mod)
-    result := C.BN_mod_exp_mont_consttime(power,
-        cBN1, cBN2, mod, bnCtx, bnMontCtx)
-
-    if result != 1 {
-        log.Fatal("BN_mod_exp failure")
-    }
-
-    return power
-}
-
-func ModMulBN(cBN1, cBN2, mod *C.BIGNUM) *C.BIGNUM {
-    /*
-    Performs a BN_mod_mul between two BIGNUMS.
-    */
-    product := GetBigNum()
-
-    bnCtx := C.BN_CTX_new()
-    defer FreeBNCTX(bnCtx)
-
-    result := C.BN_mod_mul(product, cBN1, cBN2, mod, bnCtx)
-    if result != 1 {
-        log.Fatal("BN_mod_mul failure")
-    }
-    return product
-}
-
-func ModInverseBN(cBN, mod *C.BIGNUM) *C.BIGNUM {
-    product := GetBigNum()
-
-    bnCtx := C.BN_CTX_new()
-    defer FreeBNCTX(bnCtx)
-
-    // NULL is used in place of out_no_inverse because
-    // the inverse should always exist for SECP256K1.
-    result := C.BN_mod_inverse(product, cBN, mod, bnCtx)
-
-    if unsafe.Pointer(result) == C.NULL {
-        log.Fatal("BN_mod_inverse failure")
-    }
-
-    return product
-}
-
-func ModAddBN(cBN1, cBN2, mod *C.BIGNUM) *C.BIGNUM {
-    sum := GetBigNum()
-
-    bnCtx := C.BN_CTX_new()
-    defer FreeBNCTX(bnCtx)
-
-    result := C.BN_mod_add(sum, cBN1, cBN2, mod, bnCtx)
-    if result != 1 {
-        log.Fatal("BN_mod_add failure")
-    }
-
-    return sum
-}
-
-func ModSubBN(cBN1, cBN2, mod *C.BIGNUM) *C.BIGNUM {
-    sub := GetBigNum()
-
-    bnCtx := C.BN_CTX_new()
-    defer FreeBNCTX(bnCtx)
-
-    result := C.BN_mod_sub(sub, cBN1, cBN2, mod, bnCtx)
-    if result != 1 {
-        log.Fatal("BN_mod_sub failure")
-    }
-
-    return sub
-}
-
-func NNModBN(cBN1, cBN2 *C.BIGNUM) *C.BIGNUM {
-    rem := GetBigNum()
-
-    bnCtx := C.BN_CTX_new()
-    defer FreeBNCTX(bnCtx)
-
-    result := C.BN_nnmod(rem, cBN1, cBN2, bnCtx)
-    if result != 1 {
-        log.Fatal("BN_mod_sub failure")
-    }
-
-    return rem
-}
-
-func BNToDecStr(cBN *C.BIGNUM) string {
+func BNToDecStr(cBN BigNum) string {
     cString := C.BN_bn2dec(cBN)
     defer C.free(unsafe.Pointer(cString))
 
     return C.GoString(cString)
 }
 
-func RandRangeBN(max *C.BIGNUM) *C.BIGNUM {
+func RandRangeBN(max BigNum) BigNum {
     // randBN must be freed later by the calling function.
     randBN := GetBigNum()
     result := int(C.BN_rand_range(randBN, max))
