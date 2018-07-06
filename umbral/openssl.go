@@ -6,6 +6,7 @@ import (
     "unsafe"
     "math/big"
     "log"
+    "errors"
 )
 
 type BigNum *C.BIGNUM
@@ -102,7 +103,7 @@ func GetNewECPoint(curve Curve) ECPoint {
     return newPoint
 }
 
-func GetECPointFromAffine(affineX, affineY BigNum, curve Curve) ECPoint {
+func GetECPointFromAffine(affineX, affineY BigNum, curve Curve) (ECPoint, error) {
     // newPoint must be freed later by the calling function.
     newPoint := GetNewECPoint(curve)
 
@@ -113,12 +114,12 @@ func GetECPointFromAffine(affineX, affineY BigNum, curve Curve) ECPoint {
             curve.Group, newPoint, affineX, affineY, ctx)
     if result != 1 {
         // Failure
-        log.Fatal("EC Point lookup failure")
+        return newPoint, errors.New("EC Point lookup failure")
     }
-    return newPoint
+    return newPoint, nil
 }
 
-func GetAffineCoordsFromECPoint(point ECPoint, curve Curve) (BigNum, BigNum) {
+func GetAffineCoordsFromECPoint(point ECPoint, curve Curve) (BigNum, BigNum, error) {
     // affineX and affineY must be freed later by the calling function.
     affineX := GetBigNum()
     affineY := GetBigNum()
@@ -130,9 +131,9 @@ func GetAffineCoordsFromECPoint(point ECPoint, curve Curve) (BigNum, BigNum) {
             curve.Group, point, affineX, affineY, ctx)
     if result != 1 {
         // Failure
-        log.Fatal("Affine lookup failure")
+        return affineX, affineY, errors.New("Affine lookup failure")
     }
-    return affineX, affineY
+    return affineX, affineY, nil
 }
 
 func TmpBNMontCTX(modulus BigNum) BNMontCtx {
@@ -160,6 +161,13 @@ func IntToBN(sInt int) BigNum {
 func BigIntToBN(bInt *big.Int) BigNum {
     goIntAsBytes := bInt.Bytes()
     return BytesToBN(goIntAsBytes)
+}
+
+func BNToBigInt(bn BigNum) *big.Int {
+    bytes := BNToBytes(bn)
+    bInt := big.NewInt(0)
+    bInt.SetBytes(bytes)
+    return bInt
 }
 
 func BytesToBN(bytes []byte) BigNum {

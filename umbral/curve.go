@@ -4,6 +4,7 @@ package umbral
 import "C"
 import (
     "errors"
+    "unsafe"
 )
 
 // Supported curves
@@ -41,4 +42,27 @@ func GetNewCurve(nid C.int) (Curve, error) {
 
 func (m Curve) Equals(other Curve) bool {
     return m.NID == other.NID
+}
+
+func (m Curve) Copy() (Curve, error) {
+    // Return a deep copy of a Curve.
+    group := C.EC_GROUP_dup(m.Group)
+    if unsafe.Pointer(group) == C.NULL {
+        return Curve{}, errors.New("EC_GROUP_dup failure")
+    }
+    order := C.BN_dup(m.Order)
+    if unsafe.Pointer(order) == C.NULL {
+        return Curve{}, errors.New("BN_dup failure")
+    }
+    generator := C.EC_POINT_dup(m.Generator, group)
+    if unsafe.Pointer(generator) == C.NULL {
+        return Curve{}, errors.New("EC_POINT_dup failure")
+    }
+    return Curve{m.NID, group, order, generator}, nil
+}
+
+func (m *Curve) Free() {
+    FreeECGroup(m.Group)
+    FreeBigNum(m.Order)
+    FreeECPoint(m.Generator)
 }
