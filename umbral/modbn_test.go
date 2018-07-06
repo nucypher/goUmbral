@@ -472,7 +472,7 @@ func TestInverse(t *testing.T) {
     if err != nil {
         t.Error(err)
     }
-    modbn.Inverse()
+    modbn.Invert()
 }
 
 func TestMod(t *testing.T) {

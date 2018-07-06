@@ -9,7 +9,7 @@ import (
 )
 
 /*
-Represents a BoringSSL Bignum modulo the order of a curve. Some of these
+Represents an OpenSSL BIGNUM modulo the order of a curve. Some of these
 operations will only work with prime numbers
 */
 
@@ -19,6 +19,7 @@ type ModBigNum struct {
 }
 
 func GetNewModBN(cNum BigNum, curve Curve) (ModBigNum, error) {
+    // Return the ModBigNum only if the provided Bignum is within the order of the curve.
     if !BNIsWithinOrder(cNum, curve) {
         return ModBigNum{}, errors.New("The provided BIGNUM is not on the provided curve.")
     }
@@ -31,7 +32,7 @@ func ExpectedBytesLength(curve Curve) {
 
 func GenRandModBN(curve Curve) (ModBigNum, error) {
     /*
-    Returns a CurveBN object with a cryptographically secure OpenSSL BIGNUM
+    Returns a ModBigNum with a cryptographically secure OpenSSL BIGNUM
     based on the given curve.
     */
 
@@ -55,6 +56,7 @@ func Int2ModBN(num int, curve Curve) (ModBigNum, error) {
 }
 
 func Hash2ModBN(bytes []byte, curve Curve) (ModBigNum, error) {
+    // Returns a ModBigNum based on provided data hashed by blake2b.
     hash := blake2b.Sum512(bytes)
     hashBN := BytesToBN(hash[:])
 
@@ -73,6 +75,8 @@ func Hash2ModBN(bytes []byte, curve Curve) (ModBigNum, error) {
 }
 
 func Bytes2ModBN(data []byte, curve Curve) (ModBigNum, error) {
+    // Returns the ModBigNum associated with the bytes-converted bignum
+    // provided by the data argument.
     if len(data) == 0 {
         return ModBigNum{}, errors.New("No bytes failure")
     }
@@ -148,7 +152,7 @@ func (m *ModBigNum) Div(other ModBigNum) error {
         return err
     }
 
-    err = tmpBN.Inverse()
+    err = tmpBN.Invert()
     if err != nil {
         return err
     }
@@ -195,7 +199,7 @@ func (m *ModBigNum) Sub(other ModBigNum) error {
     return nil
 }
 
-func (m *ModBigNum) Inverse() error {
+func (m *ModBigNum) Invert() error {
     inverse := GetBigNum()
 
     bnCtx := C.BN_CTX_new()
