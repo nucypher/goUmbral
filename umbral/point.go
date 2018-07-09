@@ -17,8 +17,22 @@ type Point struct {
    Curve Curve
 }
 
-func GetNewPoint(point ECPoint, curve Curve) Point {
-    return Point{ECPoint: point, Curve: curve}
+func GetNewPoint(point ECPoint, curve Curve) (Point, error) {
+    // Generate a new Point struct based on the arguments provided.
+    //
+    // If point is nil then GetNewPoint will get a new ECPoint and
+    // check for errors before returning the new Point.
+    //
+    // if point is nil AND the curve group is also nil then
+    // GetNewPoint will fail and return the error.
+    var err error = nil
+    if point == nil {
+        point, err = GetNewECPoint(curve)
+        if err != nil {
+            return Point{}, err
+        }
+    }
+    return Point{ECPoint: point, Curve: curve}, err
 }
 
 func PointLength(curve Curve) {
@@ -30,7 +44,10 @@ func GenRandPoint(curve Curve) (Point, error) {
     Returns a Point struct with a cryptographically secure EC_POINT based
     on the provided curve.
     */
-    randPoint := GetNewECPoint(curve)
+    randPoint, err := GetNewECPoint(curve)
+    if err != nil {
+        return Point{}, err
+    }
 
     randModBN, err := GenRandModBN(curve)
     if err != nil {
@@ -123,7 +140,10 @@ func (m *Point) Mul(other ModBigNum) error {
     if !m.Curve.Equals(other.Curve) {
         return errors.New("The points do not share the same curve.")
     }
-    product := GetNewECPoint(m.Curve)
+    product, err := GetNewECPoint(m.Curve)
+    if err != nil {
+        return err
+    }
 
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)
@@ -141,7 +161,10 @@ func (m *Point) Mul(other ModBigNum) error {
 
 func (m *Point) Add(other Point) error {
     // Performs an EC_POINT_add on two EC_POINTS.
-    sum := GetNewECPoint(m.Curve)
+    sum, err := GetNewECPoint(m.Curve)
+    if err != nil {
+        return err
+    }
 
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)

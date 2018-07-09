@@ -93,19 +93,22 @@ func BNIsWithinOrder(checkBN BigNum, curve Curve) bool {
     return checkSign == 1 && rangeCheck == -1
 }
 
-func GetNewECPoint(curve Curve) ECPoint {
+func GetNewECPoint(curve Curve) (ECPoint, error) {
     // newPoint must be freed later by the calling function.
     newPoint := C.EC_POINT_new(curve.Group)
     if unsafe.Pointer(newPoint) == C.NULL {
         // Failure
-        log.Fatal("New EC Point failure")
+        return newPoint, errors.New("New EC Point failure")
     }
-    return newPoint
+    return newPoint, nil
 }
 
 func GetECPointFromAffine(affineX, affineY BigNum, curve Curve) (ECPoint, error) {
     // newPoint must be freed later by the calling function.
-    newPoint := GetNewECPoint(curve)
+    newPoint, err := GetNewECPoint(curve)
+    if err != nil {
+        return newPoint, err
+    }
 
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)
