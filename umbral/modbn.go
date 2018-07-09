@@ -37,6 +37,9 @@ func GenRandModBN(curve Curve) (ModBigNum, error) {
     */
 
     // newRandBN needs to be from 1 inclusive to curve exclusive
+    if curve.Order == nil {
+        return ModBigNum{}, errors.New("The order of the curve is nil. Construct a valid curve first.")
+    }
     newRandBN := RandRangeBN(curve.Order)
 
     if !BNIsWithinOrder(newRandBN, curve) {

@@ -47,6 +47,18 @@ func TestNewPoint(t *testing.T) {
             t.Error("Should have returned an error: 'New EC Point Failure'")
         }
     })
+    t.Run("curve order nil", func(t *testing.T) {
+        curve, err := GetNewCurve(SECP256R1)
+        if err != nil {
+            t.Error(err)
+        }
+        // Setting the order of the curve to nil should cause this to fail.
+        curve.Order = nil
+        _, err = GetNewPoint(nil, curve)
+        if err == nil {
+            t.Error("Should have returned an error: The order of the curve is nil")
+        }
+    })
     t.Run("curve nil", func(t *testing.T) {
         curve, err := GetNewCurve(SECP256R1)
         if err != nil {
@@ -54,7 +66,6 @@ func TestNewPoint(t *testing.T) {
         }
         // Setting everything else to nil should still succeed.
         curve.NID = 0
-        curve.Order = nil
         curve.Generator = nil
         _, err = GetNewPoint(nil, curve)
         if err != nil {
@@ -63,3 +74,6 @@ func TestNewPoint(t *testing.T) {
     })
 }
 
+func TestGenRandPoint(t *testing.T) {
+
+}
