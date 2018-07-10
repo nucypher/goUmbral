@@ -10,6 +10,8 @@ func TestNewPoint(t *testing.T) {
         if err != nil {
             t.Error(err)
         }
+        defer curve.Free()
+
         ecPoint, err := GetNewECPoint(curve)
         if err != nil {
             t.Error(err)
@@ -27,6 +29,8 @@ func TestNewPoint(t *testing.T) {
         if err != nil {
             t.Error(err)
         }
+        defer curve.Free()
+
         point, err := GetNewPoint(nil, curve)
         if err != nil {
             t.Error(err)
@@ -75,5 +79,15 @@ func TestNewPoint(t *testing.T) {
 }
 
 func TestGenRandPoint(t *testing.T) {
-
+    curve, err := GetNewCurve(SECP256K1)
+    if err != nil {
+        t.Error(err)
+    }
+    point, err := GenRandPoint(curve)
+    if err != nil {
+        t.Error(err)
+    }
+    if point.ECPoint == nil {
+        t.Error("The returned random EC_POINT was nil")
+    }
 }

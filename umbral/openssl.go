@@ -49,7 +49,8 @@ func GetECOrderByGroup(group ECGroup) BigNum {
 }
 
 func GetECGeneratorByGroup(group ECGroup) ECPoint {
-    // generator must be freed later by the calling function.
+    // generator should not be freed directly by the calling function.
+    // Free the EC_GROUP instead.
     var generator ECPoint = C.EC_GROUP_get0_generator(group)
 
     if unsafe.Pointer(generator) == C.NULL {

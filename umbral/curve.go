@@ -62,7 +62,8 @@ func (m Curve) Copy() (Curve, error) {
 }
 
 func (m *Curve) Free() {
-    FreeECGroup(m.Group)
     FreeBigNum(m.Order)
-    FreeECPoint(m.Generator)
+    FreeECGroup(m.Group)
+    // The generator is already freed by freeing the EC_GROUP.
+    // FreeECPoint(m.Generator)
 }

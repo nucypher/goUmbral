@@ -14,27 +14,38 @@ func TestNewModBN(t *testing.T) {
         if err != nil {
             t.Error(err)
         }
+        defer curve.Free()
+
         bn := IntToBN(5)
         // Should succeed.
-        _, err = GetNewModBN(bn, curve)
+        modbn, err := GetNewModBN(bn, curve)
         if err != nil {
             t.Error(err)
         }
+        modbn.Free()
     })
     t.Run("bn=-10", func(t *testing.T) {
         curve, err := GetNewCurve(SECP256R1)
         if err != nil {
             t.Error(err)
         }
+        defer curve.Free()
+
         // IntToBN is unsigned.
         onebn := IntToBN(1)
+        defer FreeBigNum(onebn)
+
         tenbn := IntToBN(10)
+        defer FreeBigNum(tenbn)
+
         negbn := SubBN(onebn, tenbn)
+
         // Should fail.
-        _, err = GetNewModBN(negbn, curve)
+        modbn, err := GetNewModBN(negbn, curve)
         if err == nil {
             t.Error("A negative bignum should not be within the order of the curve")
         }
+        modbn.Free()
     })
 }
 
@@ -43,6 +54,7 @@ func TestGenRandBN(t *testing.T) {
     if err != nil {
         t.Error(err)
     }
+    defer curve.Free()
 
     one := IntToBN(1)
     defer FreeBigNum(one)
@@ -52,6 +64,7 @@ func TestGenRandBN(t *testing.T) {
         if err != nil {
             t.Error(err)
         }
+        defer rand.Free()
 
         // rand should always be between 1 inclusive and order exclusive
         min := CompareBN(one, rand.Bignum)
@@ -73,8 +86,13 @@ func TestInt2ModBN(t *testing.T) {
     if err != nil {
         t.Error(err)
     }
+    defer curve.Free()
 
-    Int2ModBN(10, curve)
+    modbn, err := Int2ModBN(10, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    modbn.Free()
 }
 
 func TestHash2BN(t *testing.T) {
@@ -88,12 +106,14 @@ func TestHash2BN(t *testing.T) {
         if err != nil {
             t.Error(err)
         }
+        defer curve.Free()
 
         // Convert to BN with Hash2BN.
         bn, err := Hash2ModBN(bs, curve)
         if err != nil {
             t.Error(err)
         }
+        defer bn.Free()
 
         // Hash the number with blake2b and convert to Go big.Int.
         hash := blake2b.Sum512(bs)
@@ -114,6 +134,7 @@ func TestHash2BN(t *testing.T) {
         goBN.Add(goBN, big.NewInt(1))
 
         newBN := BigIntToBN(goBN)
+        defer FreeBigNum(newBN)
 
         // newBN and bn should be equal
         result := CompareBN(newBN, bn.Bignum)
@@ -130,10 +151,13 @@ func TestHash2BN(t *testing.T) {
         if err != nil {
             t.Error(err)
         }
-        _, err = Hash2ModBN(bs, curve)
+        defer curve.Free()
+
+        modbn, err := Hash2ModBN(bs, curve)
         if err != nil {
             t.Error(err)
         }
+        modbn.Free()
     })
 
     t.Run("bs>64", func(t *testing.T) {
@@ -146,10 +170,13 @@ func TestHash2BN(t *testing.T) {
         if err != nil {
             t.Error(err)
         }
-        _, err = Hash2ModBN(bs, curve)
+        curve.Free()
+
+        modbn, err := Hash2ModBN(bs, curve)
         if err != nil {
             t.Error(err)
         }
+        modbn.Free()
     })
 }
 
@@ -162,11 +189,13 @@ func TestBytesToModBN(t *testing.T) {
         if err != nil {
             t.Error(err)
         }
+        defer curve.Free()
 
-        _, err = Bytes2ModBN(bs, curve)
+        modbn, err := Bytes2ModBN(bs, curve)
         if err != nil {
             t.Error(err)
         }
+        modbn.Free()
     })
 
     t.Run("empty", func(t *testing.T) {
@@ -175,10 +204,13 @@ func TestBytesToModBN(t *testing.T) {
         if err != nil {
             t.Error(err)
         }
-        _, err = Bytes2ModBN(bs, curve)
+        defer curve.Free()
+
+        modbn, err := Bytes2ModBN(bs, curve)
         if err == nil {
             t.Error("An empty byte array returned a valid bignum.")
         }
+        modbn.Free()
     })
 }
 
@@ -187,16 +219,19 @@ func TestBytesToBytesModBN(t *testing.T) {
     if err != nil {
         t.Error(err)
     }
+    defer curve.Free()
 
     modbn, err := Int2ModBN(19, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn.Free()
 
     newmodbn, err := Bytes2ModBN(modbn.ToBytes(), curve)
     if err != nil {
         t.Error(err)
     }
+    defer newmodbn.Free()
 
     if !modbn.Equals(newmodbn) {
         t.Error("The two ModBigNum's were not equal")
@@ -208,26 +243,31 @@ func TestEquals(t *testing.T) {
     if err != nil {
         t.Error(err)
     }
+    defer curve.Free()
 
     modbn1, err := Int2ModBN(5, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn1.Free()
 
     modbn2, err := Int2ModBN(5, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn2.Free()
 
     modbn3, err := Int2ModBN(10, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn3.Free()
 
     modbn4, err := Int2ModBN(3, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn4.Free()
 
     if !modbn1.Equals(modbn2) {
         t.Error("The two ModBigNum's were not equal")
@@ -247,26 +287,31 @@ func TestCompare(t *testing.T) {
     if err != nil {
         t.Error(err)
     }
+    defer curve.Free()
 
     modbn1, err := Int2ModBN(5, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn1.Free()
 
     modbn2, err := Int2ModBN(5, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn2.Free()
 
     modbn3, err := Int2ModBN(10, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn3.Free()
 
     modbn4, err := Int2ModBN(3, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn4.Free()
 
     if modbn1.Compare(modbn2) != 0 {
         t.Error("The two ModBigNum's were not equal")
@@ -287,19 +332,26 @@ func TestPow(t *testing.T) {
         if err != nil {
             t.Error(err)
         }
+        defer curve.Free()
 
         modbn1, err := Int2ModBN(2, curve)
         if err != nil {
             t.Error(err)
         }
+        defer modbn1.Free()
 
         modbn2, err := Int2ModBN(5, curve)
         if err != nil {
             t.Error(err)
         }
+        defer modbn2.Free()
 
         // 2^5 % curve.Order
-        modbn1.Pow(modbn2)
+        err = modbn1.Pow(modbn2)
+        if err != nil {
+            t.Error(err)
+        }
+
         t.Log(BNToDecStr(modbn1.Bignum))
 
         goBN1 := big.NewInt(2)
@@ -314,6 +366,7 @@ func TestPow(t *testing.T) {
         if err != nil {
             t.Error(err)
         }
+        defer modbn3.Free()
 
         if !modbn1.Equals(modbn3) {
             t.Error("modbn1 doesn't equal modbn3 which was converted from a Go big.Int")
@@ -324,19 +377,26 @@ func TestPow(t *testing.T) {
         if err != nil {
             t.Error(err)
         }
+        defer curve.Free()
 
         modbn1, err := Int2ModBN(2, curve)
         if err != nil {
             t.Error(err)
         }
+        defer modbn1.Free()
 
         modbn2, err := Int2ModBN(300, curve)
         if err != nil {
             t.Error(err)
         }
+        defer modbn2.Free()
 
         // 2^5 % curve.Order
-        modbn1.Pow(modbn2)
+        err = modbn1.Pow(modbn2)
+        if err != nil {
+            t.Error(err)
+        }
+
         t.Log(BNToDecStr(modbn1.Bignum))
 
         goBN1 := big.NewInt(2)
@@ -351,6 +411,7 @@ func TestPow(t *testing.T) {
         if err != nil {
             t.Error(err)
         }
+        defer modbn3.Free()
 
         if !modbn1.Equals(modbn3) {
             t.Error("modbn1 doesn't equal modbn3 which was converted from a Go big.Int")
@@ -363,24 +424,31 @@ func TestMul(t *testing.T) {
     if err != nil {
         t.Error(err)
     }
+    defer curve.Free()
 
     modbn1, err := Int2ModBN(2, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn1.Free()
 
     modbn2, err := Int2ModBN(300, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn2.Free()
 
     // 2^5 % curve.Order
-    modbn1.Mul(modbn2)
+    err = modbn1.Mul(modbn2)
+    if err != nil {
+        t.Error(err)
+    }
 
     modbn3, err := Int2ModBN(600, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn3.Free()
 
     if !modbn1.Equals(modbn3) {
         t.Error("modbn1 doesn't equal modbn3: 600")
@@ -392,18 +460,24 @@ func TestDiv(t *testing.T) {
     if err != nil {
         t.Error(err)
     }
+    defer curve.Free()
 
     modbn1, err := Int2ModBN(568, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn1.Free()
 
     modbn2, err := Int2ModBN(32, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn2.Free()
 
-    modbn1.Div(modbn2)
+    err = modbn1.Div(modbn2)
+    if err != nil {
+        t.Error(err)
+    }
 }
 
 func TestAdd(t *testing.T) {
@@ -411,23 +485,30 @@ func TestAdd(t *testing.T) {
     if err != nil {
         t.Error(err)
     }
+    defer curve.Free()
 
     modbn1, err := Int2ModBN(256, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn1.Free()
 
     modbn2, err := Int2ModBN(512, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn2.Free()
 
-    modbn1.Add(modbn2)
+    err = modbn1.Add(modbn2)
+    if err != nil {
+        t.Error(err)
+    }
 
     modbn3, err := Int2ModBN(768, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn3.Free()
 
     if !modbn1.Equals(modbn3) {
         t.Error("modbn1 doesn't equal modbn3: 768")
@@ -439,23 +520,30 @@ func TestSub(t *testing.T) {
     if err != nil {
         t.Error(err)
     }
+    defer curve.Free()
 
     modbn1, err := Int2ModBN(512, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn1.Free()
 
     modbn2, err := Int2ModBN(256, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn2.Free()
 
-    modbn1.Sub(modbn2)
+    err = modbn1.Sub(modbn2)
+    if err != nil {
+        t.Error(err)
+    }
 
     modbn3, err := Int2ModBN(256, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn3.Free()
 
     if !modbn1.Equals(modbn3) {
         t.Error("modbn1 doesn't equal modbn3: 768")
@@ -467,12 +555,18 @@ func TestInverse(t *testing.T) {
     if err != nil {
         t.Error(err)
     }
+    defer curve.Free()
 
     modbn, err := Int2ModBN(512, curve)
     if err != nil {
         t.Error(err)
     }
-    modbn.Invert()
+    defer modbn.Free()
+
+    err = modbn.Invert()
+    if err != nil {
+        t.Error(err)
+    }
 }
 
 func TestMod(t *testing.T) {
@@ -480,16 +574,22 @@ func TestMod(t *testing.T) {
     if err != nil {
         t.Error(err)
     }
+    defer curve.Free()
 
     modbn1, err := Int2ModBN(768, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn1.Free()
 
     modbn2, err := Int2ModBN(512, curve)
     if err != nil {
         t.Error(err)
     }
+    defer modbn2.Free()
 
-    modbn1.Mod(modbn2)
+    err = modbn1.Mod(modbn2)
+    if err != nil {
+        t.Error(err)
+    }
 }

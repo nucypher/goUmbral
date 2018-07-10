@@ -41,10 +41,8 @@ func PointLength(curve Curve) {
 }
 
 func GenRandPoint(curve Curve) (Point, error) {
-    /*
-    Returns a Point struct with a cryptographically secure EC_POINT based
-    on the provided curve.
-    */
+    // Returns a Point struct with a cryptographically
+    // secure EC_POINT based on the provided curve.
     randPoint, err := GetNewECPoint(curve)
     if err != nil {
         return Point{}, err
@@ -54,13 +52,13 @@ func GenRandPoint(curve Curve) (Point, error) {
     if err != nil {
         return Point{}, err
     }
-    randBN := randModBN.Bignum
+    defer randModBN.Free()
 
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)
 
     result := C.EC_POINT_mul(curve.Group, randPoint, (*C.BIGNUM)(C.NULL),
-        curve.Generator, randBN, ctx)
+        curve.Generator, randModBN.Bignum, ctx)
 
     if result != 1 {
         return Point{}, errors.New("EC_POINT_mul failure")

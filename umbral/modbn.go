@@ -258,3 +258,9 @@ func (m ModBigNum) Copy() (ModBigNum, error) {
     curve := Curve{m.Curve.NID, group, order, generator}
     return ModBigNum{Bignum: bn, Curve: curve}, nil
 }
+
+func (m *ModBigNum) Free() {
+    FreeBigNum(m.Bignum)
+    // Do not free the curve.
+    // m.Curve.Free()
+}
