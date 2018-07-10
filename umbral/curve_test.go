@@ -43,7 +43,7 @@ func TestEqualCurves(t *testing.T) {
 }
 
 func TestFree(t *testing.T) {
-    // Stress test for memeory leaks.
+    // Stress test for memory leaks.
     // Leaks are more obvious when there is a lot of lost memory.
     for i := 0; i < 10000; i++ {
         curve, err := GetNewCurve(SECP256K1)
@@ -52,5 +52,23 @@ func TestFree(t *testing.T) {
         }
 
         curve.Free()
+    }
+}
+
+func TestCopy(t *testing.T) {
+    // Stress test for memory leaks.
+    // Leaks are more obvious when there is a lot of lost memory.
+    curve, err := GetNewCurve(SECP256K1)
+    if err != nil {
+        t.Error(err)
+    }
+
+    for i := 0; i < 10000; i++ {
+        curve2, err := curve.Copy()
+        if err != nil {
+            t.Error(err)
+        }
+
+        curve2.Free()
     }
 }

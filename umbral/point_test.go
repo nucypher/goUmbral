@@ -20,6 +20,8 @@ func TestNewPoint(t *testing.T) {
         if err != nil {
             t.Error(err)
         }
+        defer point.Free()
+
         if point.ECPoint == nil {
             t.Error("The point was nil.")
         }
@@ -35,6 +37,8 @@ func TestNewPoint(t *testing.T) {
         if err != nil {
             t.Error(err)
         }
+        defer point.Free()
+
         if point.ECPoint == nil {
             t.Error("The point was nil.")
         }
@@ -68,13 +72,16 @@ func TestNewPoint(t *testing.T) {
         if err != nil {
             t.Error(err)
         }
+        defer curve.Free()
+
         // Setting everything else to nil should still succeed.
         curve.NID = 0
         curve.Generator = nil
-        _, err = GetNewPoint(nil, curve)
+        point, err := GetNewPoint(nil, curve)
         if err != nil {
             t.Error(err)
         }
+        point.Free()
     })
 }
 
@@ -83,11 +90,49 @@ func TestGenRandPoint(t *testing.T) {
     if err != nil {
         t.Error(err)
     }
+    defer curve.Free()
+
     point, err := GenRandPoint(curve)
     if err != nil {
         t.Error(err)
     }
+    defer point.Free()
+
     if point.ECPoint == nil {
         t.Error("The returned random EC_POINT was nil")
+    }
+}
+
+func TestToFromAffine(t *testing.T) {
+    curve, err := GetNewCurve(SECP256K1)
+    if err != nil {
+        t.Error(err)
+    }
+    defer curve.Free()
+
+    point, err := GenRandPoint(curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer point.Free()
+
+    x, y, err := point.ToAffine()
+    if err != nil {
+        t.Error(err)
+    }
+
+    point2, err := Affine2Point(x, y, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer point2.Free()
+
+    equal, err := point.Equals(point2)
+    if err != nil {
+        t.Error(err)
+    }
+
+    if !equal {
+        t.Error("The points were not equal")
     }
 }
