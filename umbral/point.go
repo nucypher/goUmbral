@@ -222,20 +222,17 @@ func UnsafeHashToPoint() {
 }
 
 func (m Point) Copy() (Point, error) {
-    // Deep copy of a Point.
+    // Deep copy of a Point EXCLUDING the curve.
     point := C.EC_POINT_dup(m.ECPoint, m.Curve.Group)
     if unsafe.Pointer(point) == C.NULL {
         return Point{}, errors.New("EC_POINT_dup failure")
     }
-    curve, err := m.Curve.Copy()
-    if err != nil {
-        return Point{}, err
-    }
 
-    return Point{ECPoint: point, Curve: curve}, nil
+    return Point{ECPoint: point, Curve: m.Curve}, nil
 }
 
 func (m Point) Free() {
     FreeECPoint(m.ECPoint)
-    m.Curve.Free()
+    // Do not free the curve.
+    // m.Curve.Free()
 }
