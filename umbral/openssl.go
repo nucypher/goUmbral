@@ -6,7 +6,6 @@ import (
     "unsafe"
     "math/big"
     "log"
-    "errors"
 )
 
 type BigNum *C.BIGNUM
@@ -94,22 +93,19 @@ func BNIsWithinOrder(checkBN BigNum, curve Curve) bool {
     return checkSign == 1 && rangeCheck == -1
 }
 
-func GetNewECPoint(curve Curve) (ECPoint, error) {
+func GetNewECPoint(curve Curve) ECPoint {
     // newPoint must be freed later by the calling function.
     newPoint := C.EC_POINT_new(curve.Group)
     if unsafe.Pointer(newPoint) == C.NULL {
         // Failure
-        return newPoint, errors.New("New EC Point failure")
+        log.Fatal("New EC Point failure")
     }
-    return newPoint, nil
+    return newPoint
 }
 
-func GetECPointFromAffine(affineX, affineY BigNum, curve Curve) (ECPoint, error) {
+func GetECPointFromAffine(affineX, affineY BigNum, curve Curve) ECPoint {
     // newPoint must be freed later by the calling function.
-    newPoint, err := GetNewECPoint(curve)
-    if err != nil {
-        return newPoint, err
-    }
+    newPoint := GetNewECPoint(curve)
 
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)
@@ -118,12 +114,12 @@ func GetECPointFromAffine(affineX, affineY BigNum, curve Curve) (ECPoint, error)
             curve.Group, newPoint, affineX, affineY, ctx)
     if result != 1 {
         // Failure
-        return newPoint, errors.New("EC Point lookup failure")
+        log.Fatal("EC Point lookup failure")
     }
-    return newPoint, nil
+    return newPoint
 }
 
-func GetAffineCoordsFromECPoint(point ECPoint, curve Curve) (BigNum, BigNum, error) {
+func GetAffineCoordsFromECPoint(point ECPoint, curve Curve) (BigNum, BigNum) {
     // affineX and affineY must be freed later by the calling function.
     affineX := GetBigNum()
     affineY := GetBigNum()
@@ -135,9 +131,9 @@ func GetAffineCoordsFromECPoint(point ECPoint, curve Curve) (BigNum, BigNum, err
             curve.Group, point, affineX, affineY, ctx)
     if result != 1 {
         // Failure
-        return affineX, affineY, errors.New("Affine lookup failure")
+        log.Fatal("Affine lookup failure")
     }
-    return affineX, affineY, nil
+    return affineX, affineY
 }
 
 func TmpBNMontCTX(modulus BigNum) BNMontCtx {

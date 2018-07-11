@@ -3,8 +3,8 @@ package umbral
 // #include "shim.h"
 import "C"
 import (
-    "errors"
     "unsafe"
+    "log"
 )
 
 // Supported curves
@@ -21,7 +21,7 @@ type Curve struct {
     Generator ECPoint
 }
 
-func GetNewCurve(nid C.int) (Curve, error) {
+func GetNewCurve(nid C.int) Curve {
     // Do not use cast from an int to a C.int with an unsupported curve nid.
     // Use the constant curve values above instead.
 
@@ -32,33 +32,33 @@ func GetNewCurve(nid C.int) (Curve, error) {
     case SECP256K1:
     case SECP384R1:
     default:
-        return Curve{}, errors.New("This curve is not supported. Please use one of the constant curves defined in curve.go.")
+        log.Fatal("This curve is not supported. Please use one of the constant curves defined in curve.go.")
     }
     group := GetECGroupByCurveNID(int(nid))
     order := GetECOrderByGroup(group)
     generator := GetECGeneratorByGroup(group)
-    return Curve{NID: int(nid), Group: group, Order: order, Generator: generator}, nil
+    return Curve{NID: int(nid), Group: group, Order: order, Generator: generator}
 }
 
 func (m Curve) Equals(other Curve) bool {
     return m.NID == other.NID
 }
 
-func (m Curve) Copy() (Curve, error) {
+func (m Curve) Copy() Curve {
     // Return a deep copy of a Curve.
     group := C.EC_GROUP_dup(m.Group)
     if unsafe.Pointer(group) == C.NULL {
-        return Curve{}, errors.New("EC_GROUP_dup failure")
+        log.Fatal("EC_GROUP_dup failure")
     }
     order := C.BN_dup(m.Order)
     if unsafe.Pointer(order) == C.NULL {
-        return Curve{}, errors.New("BN_dup failure")
+        log.Fatal("BN_dup failure")
     }
     generator := C.EC_POINT_dup(m.Generator, group)
     if unsafe.Pointer(generator) == C.NULL {
-        return Curve{}, errors.New("EC_POINT_dup failure")
+        log.Fatal("EC_POINT_dup failure")
     }
-    return Curve{m.NID, group, order, generator}, nil
+    return Curve{m.NID, group, order, generator}
 }
 
 func (m *Curve) Free() {

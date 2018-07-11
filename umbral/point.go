@@ -4,7 +4,7 @@ package umbral
 import "C"
 import (
     "unsafe"
-    "errors"
+    "log"
     "math/big"
 )
 
@@ -17,7 +17,7 @@ type Point struct {
    Curve Curve
 }
 
-func GetNewPoint(point ECPoint, curve Curve) (Point, error) {
+func GetNewPoint(point ECPoint, curve Curve) Point {
     // Generate a new Point struct based on the arguments provided.
     //
     // If point is nil then GetNewPoint will generate a new cryptographically secure
@@ -25,32 +25,25 @@ func GetNewPoint(point ECPoint, curve Curve) (Point, error) {
     //
     // if point is nil AND the curve group is also nil then
     // GetNewPoint will fail and return the error.
-    var err error = nil
     if point == nil {
-        newPoint, err := GenRandPoint(curve)
-        if err != nil {
-            return Point{}, err
-        }
-        return newPoint, err
+        newPoint := GenRandPoint(curve)
+        return newPoint
     }
-    return Point{ECPoint: point, Curve: curve}, err
+    return Point{ECPoint: point, Curve: curve}
 }
 
 func PointLength(curve Curve) {
     // TODO: Return the size of a point given the curve.
 }
 
-func GenRandPoint(curve Curve) (Point, error) {
+func GenRandPoint(curve Curve) Point {
     // Returns a Point struct with a cryptographically
     // secure EC_POINT based on the provided curve.
-    randPoint, err := GetNewECPoint(curve)
-    if err != nil {
-        return Point{}, err
-    }
+    randPoint := GetNewECPoint(curve)
 
     randModBN, err := GenRandModBN(curve)
     if err != nil {
-        return Point{}, err
+        log.Fatal(err)
     }
     defer randModBN.Free()
 
@@ -61,60 +54,52 @@ func GenRandPoint(curve Curve) (Point, error) {
         curve.Generator, randModBN.Bignum, ctx)
 
     if result != 1 {
-        return Point{}, errors.New("EC_POINT_mul failure")
+        log.Fatal("EC_POINT_mul failure")
     }
 
-    return Point{ECPoint: randPoint, Curve: curve}, nil
+    return Point{ECPoint: randPoint, Curve: curve}
 }
 
-func Affine2Point(affineX, affineY *big.Int, curve Curve) (Point, error) {
+func Affine2Point(affineX, affineY *big.Int, curve Curve) Point {
     /*
     Returns a Point object from the given affine coordinates.
     */
     x := BigIntToBN(affineX)
     y := BigIntToBN(affineY)
     if !BNIsWithinOrder(x, curve) || !BNIsWithinOrder(y, curve) {
-        return Point{}, errors.New("x or y are not within the curve")
+        log.Fatal("x or y are not within the curve")
     }
-    point, err := GetECPointFromAffine(x, y, curve)
-    if err != nil {
-        return Point{}, err
-    }
+    point := GetECPointFromAffine(x, y, curve)
 
-    return Point{ECPoint: point, Curve: curve}, nil
+    return Point{ECPoint: point, Curve: curve}
 }
 
-func (m Point) ToAffine() (*big.Int, *big.Int, error) {
+func (m Point) ToAffine() (*big.Int, *big.Int) {
     /*
     Returns an x and y coordinate of the Point as a Go big.Int.
     */
-    xBN, yBN, err := GetAffineCoordsFromECPoint(m.ECPoint, m.Curve)
+    xBN, yBN := GetAffineCoordsFromECPoint(m.ECPoint, m.Curve)
     defer FreeBigNum(xBN)
     defer FreeBigNum(yBN)
-    if err != nil {
-        return nil, nil, err
-    }
+
     goX := BNToBigInt(xBN)
     goY := BNToBigInt(yBN)
-    return goX, goY, nil
+    return goX, goY
 }
 
-func Bytes2Point(data []byte, curve Curve) (Point, error) {
+func Bytes2Point(data []byte, curve Curve) Point {
     if len(data) == 0 {
-        return Point{}, errors.New("No bytes failure")
+        log.Fatal("No bytes failure")
     }
 
     // TODO: Implement this when PointLength is finished.
-    return Point{}, nil
+    return Point{}
 }
 
-func (m Point) ToBytes() ([]byte, error) {
-    x, y, err := m.ToAffine()
-    if err != nil {
-        return nil, err
-    }
+func (m Point) ToBytes() []byte {
+    x, y := m.ToAffine()
     // TODO: Uncompressed vs Compressed
-    return append(x.Bytes(), y.Bytes()...), nil
+    return append(x.Bytes(), y.Bytes()...)
 }
 
 func GetPointFromGenerator(curve Curve) (ECPoint, Curve) {
@@ -123,124 +108,98 @@ func GetPointFromGenerator(curve Curve) (ECPoint, Curve) {
     return curve.Generator, curve
 }
 
-func (m Point) Equals(other Point) (bool, error) {
-    if m.ECPoint == nil || other.ECPoint == nil {
-        return false, errors.New("One of the EC_POINTs was null")
-    }
-    if m.Curve.Group == nil {
-        return false, errors.New("The curve group is null")
-    }
-
+func (m *Point) Equals(other Point) bool {
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)
 
     result := C.EC_POINT_cmp(m.Curve.Group, m.ECPoint, other.ECPoint, ctx)
     if result == -1 {
-        return false, errors.New("EC_POINT_cmp failure")
+        log.Fatal("EC_POINT_cmp failure")
     }
-    return result == 0, nil
+    return result == 0
 }
 
-func (m *Point) Mul(other Point) error {
-    /*
-    Performs a EC_POINT_mul on an EC_POINT and a BIGNUM.
-    */
-    if !m.Curve.Equals(other.Curve) {
-        return errors.New("The points do not share the same curve.")
-    }
-    product, err := GetNewECPoint(m.Curve)
-    if err != nil {
-        return err
-    }
+func (z *Point) Mul(x *Point, y *ModBigNum) *Point {
+    // Sets 'z' to the EC_POINT_mul of an EC_POINT 'x' and a BIGNUM 'y'.
+    // Returns 'z'.
+    product := GetNewECPoint(x.Curve)
 
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)
 
-    result := C.EC_POINT_mul(m.Curve.Group, product, (*C.BIGNUM)(C.NULL),
-        m.ECPoint, other.Bignum, ctx)
+    result := C.EC_POINT_mul(x.Curve.Group, product, (*C.BIGNUM)(C.NULL),
+        x.ECPoint, y.Bignum, ctx)
     if result != 1 {
-        return errors.New("EC_POINT_mul failure")
+        log.Fatal("EC_POINT_mul failure")
     }
-    FreeECPoint(m.ECPoint)
+    FreeECPoint(z.ECPoint)
 
-    m.ECPoint = product
-    return nil
+    z.ECPoint = product
+    return z
 }
 
-func (m *Point) Add(other Point) error {
-    // Performs an EC_POINT_add on two EC_POINTS.
-    sum, err := GetNewECPoint(m.Curve)
-    if err != nil {
-        return err
-    }
+func (z *Point) Add(x, y *Point) *Point {
+    // Sets 'z' to the EC_POINT_add of two EC_POINTS 'x' and 'y'.
+    // Returns 'z'.
+    sum := GetNewECPoint(x.Curve)
 
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)
 
-    result := C.EC_POINT_add(m.Curve.Group, sum, m.ECPoint, other.ECPoint, ctx)
+    result := C.EC_POINT_add(x.Curve.Group, sum, x.ECPoint, y.ECPoint, ctx)
     if result != 1 {
-        return errors.New("EC_POINT_add failure")
+        log.Fatal("EC_POINT_add failure")
     }
 
-    FreeECPoint(m.ECPoint)
+    FreeECPoint(z.ECPoint)
 
-    m.ECPoint = sum
-    return nil
+    z.ECPoint = sum
+    return z
 }
 
-func (m *Point) Sub(other Point) error {
-    // Performs an subtraction on two EC_POINTS by adding by the inverse.
-    tmp, err := other.Copy()
-    if err != nil {
-        return err
-    }
+func (z *Point) Sub(x, y *Point) *Point {
+    // Sets 'z' to 'x' sub 'y' by adding via the inverse.
+    // Returns 'z'.
+    tmp := y.Copy()
     defer tmp.Free()
 
-    err = tmp.Invert()
-    if err != nil {
-        return err
-    }
-
-    err = m.Add(tmp)
-    if err != nil {
-        return err
-    }
-
-    return nil
+    return z.Add(x, tmp.Invert())
 }
 
-func (m *Point) Invert() error {
-    inverse := C.EC_POINT_dup(m.ECPoint, m.Curve.Group)
+func (z *Point) Invert() *Point {
+    // Sets 'z' to its inverse.
+    // Returns 'z'.
+    inverse := C.EC_POINT_dup(z.ECPoint, z.Curve.Group)
 
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)
 
-    result := C.EC_POINT_invert(m.Curve.Group, inverse, ctx)
+    result := C.EC_POINT_invert(z.Curve.Group, inverse, ctx)
     if result != 1 {
-        return errors.New("EC_POINT_invert failure")
+        log.Fatal("EC_POINT_invert failure")
     }
 
-    FreeECPoint(m.ECPoint)
+    FreeECPoint(z.ECPoint)
 
-    m.ECPoint = inverse
-    return nil
+    z.ECPoint = inverse
+    return z
 }
 
 func UnsafeHashToPoint() {
     // TODO: Hash arbitrary data into a valid EC point.
 }
 
-func (m Point) Copy() (Point, error) {
+func (m *Point) Copy() *Point {
     // Deep copy of a Point EXCLUDING the curve.
     point := C.EC_POINT_dup(m.ECPoint, m.Curve.Group)
     if unsafe.Pointer(point) == C.NULL {
-        return Point{}, errors.New("EC_POINT_dup failure")
+        log.Fatal("EC_POINT_dup failure")
     }
 
-    return Point{ECPoint: point, Curve: m.Curve}, nil
+    return &Point{ECPoint: point, Curve: m.Curve}
 }
 
-func (m Point) Free() {
+func (m *Point) Free() {
     FreeECPoint(m.ECPoint)
     // Do not free the curve.
     // m.Curve.Free()
