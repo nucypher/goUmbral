@@ -103,7 +103,7 @@ func TestGenRandPoint(t *testing.T) {
     }
 }
 
-func TestToFromAffine(t *testing.T) {
+func TestPointToFromAffine(t *testing.T) {
     curve, err := GetNewCurve(SECP256K1)
     if err != nil {
         t.Error(err)
@@ -135,4 +135,66 @@ func TestToFromAffine(t *testing.T) {
     if !equal {
         t.Error("The points were not equal")
     }
+}
+
+func TestPointToFromBytes(t *testing.T) {
+    curve, err := GetNewCurve(SECP256K1)
+    if err != nil {
+        t.Error(err)
+    }
+    defer curve.Free()
+
+    point, err := GenRandPoint(curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer point.Free()
+
+    bytes, err := point.ToBytes()
+    if err != nil {
+        t.Error(err)
+    }
+
+    point2, err := Bytes2Point(bytes, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer point2.Free()
+
+    equal, err := point.Equals(point2)
+    if err != nil {
+        t.Error(err)
+    }
+
+    if !equal {
+        t.Error("The points were not equal")
+    }
+}
+
+func TestPointMul(t *testing.T) {
+
+}
+
+func TestPointAdd(t *testing.T) {
+
+}
+
+func TestPointSub(t *testing.T) {
+
+}
+
+func TestPointInvert(t *testing.T) {
+
+}
+
+func TestUnsafeHashToPoint(t *testing.T) {
+
+}
+
+func TestPointCopy(t *testing.T) {
+
+}
+
+func TestPointFree(t *testing.T) {
+
 }

@@ -118,10 +118,19 @@ func (m Point) ToBytes() ([]byte, error) {
 }
 
 func GetPointFromGenerator(curve Curve) (ECPoint, Curve) {
+    // Consider making a copy of this point
+    // so there are not any double frees.
     return curve.Generator, curve
 }
 
 func (m Point) Equals(other Point) (bool, error) {
+    if m.ECPoint == nil || other.ECPoint == nil {
+        return false, errors.New("One of the EC_POINTs was null")
+    }
+    if m.Curve.Group == nil {
+        return false, errors.New("The curve group is null")
+    }
+
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)
 
@@ -132,7 +141,7 @@ func (m Point) Equals(other Point) (bool, error) {
     return result == 0, nil
 }
 
-func (m *Point) Mul(other ModBigNum) error {
+func (m *Point) Mul(other Point) error {
     /*
     Performs a EC_POINT_mul on an EC_POINT and a BIGNUM.
     */
