@@ -141,7 +141,7 @@ func (m Point) Equals(other Point) (bool, error) {
     return result == 0, nil
 }
 
-func (m *Point) Mul(other Point) error {
+func (m *Point) Mul(other ModBigNum) error {
     /*
     Performs a EC_POINT_mul on an EC_POINT and a BIGNUM.
     */
