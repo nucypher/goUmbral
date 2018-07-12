@@ -6,12 +6,20 @@ import (
 
 func TestNewPoint(t *testing.T) {
     t.Run("point provided", func(t *testing.T) {
-        curve := GetNewCurve(SECP256R1)
+        curve, err := GetNewCurve(SECP256R1)
+        if err != nil {
+            t.Error(err)
+        }
         defer curve.Free()
 
-        ecPoint := GetNewECPoint(curve)
-
-        point := GetNewPoint(ecPoint, curve)
+        ecPoint, err := GetNewECPoint(curve)
+        if err != nil {
+            t.Error(err)
+        }
+        point, err := GetNewPoint(ecPoint, curve)
+        if err != nil {
+            t.Error(err)
+        }
         defer point.Free()
 
         if point.ECPoint == nil {
@@ -19,35 +27,75 @@ func TestNewPoint(t *testing.T) {
         }
     })
     t.Run("point nil", func(t *testing.T) {
-        curve := GetNewCurve(SECP256R1)
+        curve, err := GetNewCurve(SECP256R1)
+        if err != nil {
+            t.Error(err)
+        }
         defer curve.Free()
 
-        point := GetNewPoint(nil, curve)
+        point, err := GetNewPoint(nil, curve)
+        if err != nil {
+            t.Error(err)
+        }
         defer point.Free()
 
         if point.ECPoint == nil {
             t.Error("The point was nil.")
         }
     })
+    t.Run("curve group nil", func(t *testing.T) {
+        curve, err := GetNewCurve(SECP256R1)
+        if err != nil {
+            t.Error(err)
+        }
+        // Setting the EC_GROUP to nil should cause this to fail.
+        curve.Group = nil
+        _, err = GetNewPoint(nil, curve)
+        if err == nil {
+            t.Error("Should have returned an error: 'New EC Point Failure'")
+        }
+    })
+    t.Run("curve order nil", func(t *testing.T) {
+        curve, err := GetNewCurve(SECP256R1)
+        if err != nil {
+            t.Error(err)
+        }
+        // Setting the order of the curve to nil should cause this to fail.
+        curve.Order = nil
+        _, err = GetNewPoint(nil, curve)
+        if err == nil {
+            t.Error("Should have returned an error: The order of the curve is nil")
+        }
+    })
     t.Run("curve nil", func(t *testing.T) {
-        curve := GetNewCurve(SECP256R1)
+        curve, err := GetNewCurve(SECP256R1)
+        if err != nil {
+            t.Error(err)
+        }
         defer curve.Free()
 
         // Setting everything else to nil should still succeed.
         curve.NID = 0
         curve.Generator = nil
-
-        point := GetNewPoint(nil, curve)
-
+        point, err := GetNewPoint(nil, curve)
+        if err != nil {
+            t.Error(err)
+        }
         point.Free()
     })
 }
 
 func TestGenRandPoint(t *testing.T) {
-    curve := GetNewCurve(SECP256K1)
+    curve, err := GetNewCurve(SECP256K1)
+    if err != nil {
+        t.Error(err)
+    }
     defer curve.Free()
 
-    point := GenRandPoint(curve)
+    point, err := GenRandPoint(curve)
+    if err != nil {
+        t.Error(err)
+    }
     defer point.Free()
 
     if point.ECPoint == nil {
@@ -56,38 +104,72 @@ func TestGenRandPoint(t *testing.T) {
 }
 
 func TestPointToFromAffine(t *testing.T) {
-    curve := GetNewCurve(SECP256K1)
+    curve, err := GetNewCurve(SECP256K1)
+    if err != nil {
+        t.Error(err)
+    }
     defer curve.Free()
 
-    point := GenRandPoint(curve)
+    point, err := GenRandPoint(curve)
+    if err != nil {
+        t.Error(err)
+    }
     defer point.Free()
 
-    x, y := point.ToAffine()
+    x, y, err := point.ToAffine()
+    if err != nil {
+        t.Error(err)
+    }
 
-    point2 := Affine2Point(x, y, curve)
+    point2, err := Affine2Point(x, y, curve)
+    if err != nil {
+        t.Error(err)
+    }
     defer point2.Free()
 
-    if !point.Equals(point2) {
+    equal, err := point.Equals(point2)
+    if err != nil {
+        t.Error(err)
+    }
+
+    if !equal {
         t.Error("The points were not equal")
     }
 }
 
-/*
 func TestPointToFromBytes(t *testing.T) {
-    curve := GetNewCurve(SECP256K1)
+    curve, err := GetNewCurve(SECP256K1)
+    if err != nil {
+        t.Error(err)
+    }
     defer curve.Free()
 
-    point := GenRandPoint(curve)
+    point, err := GenRandPoint(curve)
+    if err != nil {
+        t.Error(err)
+    }
     defer point.Free()
 
-    point2 := Bytes2Point(point.ToBytes(), curve)
+    bytes, err := point.ToBytes()
+    if err != nil {
+        t.Error(err)
+    }
+
+    point2, err := Bytes2Point(bytes, curve)
+    if err != nil {
+        t.Error(err)
+    }
     defer point2.Free()
 
-    if !point.Equals(point2) {
+    equal, err := point.Equals(point2)
+    if err != nil {
+        t.Error(err)
+    }
+
+    if !equal {
         t.Error("The points were not equal")
     }
 }
-*/
 
 func TestPointMul(t *testing.T) {
 
