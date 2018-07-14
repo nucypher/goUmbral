@@ -148,43 +148,30 @@ func (m *Point) Mul(other ModBigNum) error {
     if !m.Curve.Equals(other.Curve) {
         return errors.New("The points do not share the same curve.")
     }
-    product, err := GetNewECPoint(m.Curve)
-    if err != nil {
-        return err
-    }
 
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)
 
-    result := C.EC_POINT_mul(m.Curve.Group, product, (*C.BIGNUM)(C.NULL),
+    result := C.EC_POINT_mul(m.Curve.Group, m.ECPoint, (*C.BIGNUM)(C.NULL),
         m.ECPoint, other.Bignum, ctx)
     if result != 1 {
         return errors.New("EC_POINT_mul failure")
     }
-    FreeECPoint(m.ECPoint)
 
-    m.ECPoint = product
     return nil
 }
 
 func (m *Point) Add(other Point) error {
     // Performs an EC_POINT_add on two EC_POINTS.
-    sum, err := GetNewECPoint(m.Curve)
-    if err != nil {
-        return err
-    }
 
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)
 
-    result := C.EC_POINT_add(m.Curve.Group, sum, m.ECPoint, other.ECPoint, ctx)
+    result := C.EC_POINT_add(m.Curve.Group, m.ECPoint, m.ECPoint, other.ECPoint, ctx)
     if result != 1 {
         return errors.New("EC_POINT_add failure")
     }
 
-    FreeECPoint(m.ECPoint)
-
-    m.ECPoint = sum
     return nil
 }
 
@@ -210,19 +197,14 @@ func (m *Point) Sub(other Point) error {
 }
 
 func (m *Point) Invert() error {
-    inverse := C.EC_POINT_dup(m.ECPoint, m.Curve.Group)
-
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)
 
-    result := C.EC_POINT_invert(m.Curve.Group, inverse, ctx)
+    result := C.EC_POINT_invert(m.Curve.Group, m.ECPoint, ctx)
     if result != 1 {
         return errors.New("EC_POINT_invert failure")
     }
 
-    FreeECPoint(m.ECPoint)
-
-    m.ECPoint = inverse
     return nil
 }
 

@@ -172,29 +172,126 @@ func TestPointToFromBytes(t *testing.T) {
 }
 
 func TestPointMul(t *testing.T) {
+    curve, err := GetNewCurve(SECP256K1)
+    if err != nil {
+        t.Error(err)
+    }
+    defer curve.Free()
 
+    point, err := GenRandPoint(curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer point.Free()
+
+    modbn, err := GenRandModBN(curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer modbn.Free()
+
+    err = point.Mul(modbn)
+    if err != nil {
+        t.Error(err)
+    }
 }
 
 func TestPointAdd(t *testing.T) {
+    curve, err := GetNewCurve(SECP256K1)
+    if err != nil {
+        t.Error(err)
+    }
+    defer curve.Free()
 
+    point1, err := GenRandPoint(curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer point1.Free()
+
+    point2, err := GenRandPoint(curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer point2.Free()
+
+    err = point1.Add(point2)
+    if err != nil {
+        t.Error(err)
+    }
 }
 
 func TestPointSub(t *testing.T) {
+    curve, err := GetNewCurve(SECP256K1)
+    if err != nil {
+        t.Error(err)
+    }
+    defer curve.Free()
 
+    point1, err := GenRandPoint(curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer point1.Free()
+
+    point2, err := GenRandPoint(curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer point2.Free()
+
+    err = point1.Sub(point2)
+    if err != nil {
+        t.Error(err)
+    }
 }
 
 func TestPointInvert(t *testing.T) {
+    curve, err := GetNewCurve(SECP256K1)
+    if err != nil {
+        t.Error(err)
+    }
+    defer curve.Free()
 
+    point, err := GenRandPoint(curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer point.Free()
+
+    err = point.Invert()
+    if err != nil {
+        t.Error(err)
+    }
 }
 
 func TestUnsafeHashToPoint(t *testing.T) {
-
 }
 
 func TestPointCopy(t *testing.T) {
+    curve, err := GetNewCurve(SECP256K1)
+    if err != nil {
+        t.Error(err)
+    }
+    defer curve.Free()
 
-}
+    point, err := GenRandPoint(curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer point.Free()
 
-func TestPointFree(t *testing.T) {
+    point2, err := point.Copy()
+    if err != nil {
+        t.Error(err)
+    }
+    defer point2.Free()
 
+    if point.ECPoint == point2.ECPoint {
+        t.Error("The pointers were equal after a copy.")
+    }
+
+    if equ, err := point.Equals(point2); err != nil || !equ {
+        t.Error("The points were not equal.")
+    }
 }
