@@ -164,13 +164,27 @@ func Bytes2Point(data []byte, curve Curve) (Point, error) {
     }
 }
 
-func (m Point) ToBytes() ([]byte, error) {
+func (m Point) ToBytes(isCompressed bool) ([]byte, error) {
+    // Returns the Point serialized as bytes.
+    // It will return a compressed form if isCompressed is set to True.
     x, y, err := m.ToAffine()
     if err != nil {
         return nil, err
     }
-    // TODO: Uncompressed vs Compressed
-    return append(x.Bytes(), y.Bytes()...), nil
+
+    if isCompressed {
+        yBytes := y.Bytes()
+        yBit := (yBytes[len(yBytes) - 1] & byte(1)) + 2
+
+        var data []byte
+        data = append(data, yBit)
+        return append(data, x.Bytes()...), nil
+    } else {
+        var data []byte
+        data = append(data, byte(4))
+        data = append(data, x.Bytes()...)
+        return append(data, y.Bytes()...), nil
+    }
 }
 
 func GetPointFromGenerator(curve Curve) (ECPoint, Curve) {

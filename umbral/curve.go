@@ -45,7 +45,8 @@ func (m Curve) Equals(other Curve) bool {
 }
 
 func (m Curve) Size() uint {
-    return GetECGroupDegree(m.Group)
+    bits := GetECGroupDegree(m.Group)
+    return (bits + 7) / 8
 }
 
 func (m Curve) Copy() (Curve, error) {

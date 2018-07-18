@@ -150,25 +150,48 @@ func TestPointToFromBytes(t *testing.T) {
     }
     defer point.Free()
 
-    bytes, err := point.ToBytes()
-    if err != nil {
-        t.Error(err)
-    }
+    t.Run("uncompressed", func(t *testing.T) {
+        bytes, err := point.ToBytes(false)
+        if err != nil {
+            t.Error(err)
+        }
 
-    point2, err := Bytes2Point(bytes, curve)
-    if err != nil {
-        t.Error(err)
-    }
-    defer point2.Free()
+        point2, err := Bytes2Point(bytes, curve)
+        if err != nil {
+            t.Error(err)
+        }
+        defer point2.Free()
 
-    equal, err := point.Equals(point2)
-    if err != nil {
-        t.Error(err)
-    }
+        equal, err := point.Equals(point2)
+        if err != nil {
+            t.Error(err)
+        }
 
-    if !equal {
-        t.Error("The points were not equal")
-    }
+        if !equal {
+            t.Error("The points were not equal")
+        }
+    })
+    t.Run("compressed", func(t *testing.T) {
+        bytes, err := point.ToBytes(true)
+        if err != nil {
+            t.Error(err)
+        }
+
+        point2, err := Bytes2Point(bytes, curve)
+        if err != nil {
+            t.Error(err)
+        }
+        defer point2.Free()
+
+        equal, err := point.Equals(point2)
+        if err != nil {
+            t.Error(err)
+        }
+
+        if !equal {
+            t.Error("The points were not equal")
+        }
+    })
 }
 
 func TestPointMul(t *testing.T) {
