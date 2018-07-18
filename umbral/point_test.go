@@ -289,6 +289,19 @@ func TestPointInvert(t *testing.T) {
 }
 
 func TestUnsafeHashToPoint(t *testing.T) {
+    curve, err := GetNewCurve(SECP256K1)
+    if err != nil {
+        t.Error(err)
+    }
+    defer curve.Free()
+
+    data := []byte{243, 23, 94, 82}
+
+    point, err := UnsafeHashToPoint(data, curve, "bigboi")
+    if err != nil {
+        t.Error(err)
+    }
+    defer point.Free()
 }
 
 func TestPointCopy(t *testing.T) {

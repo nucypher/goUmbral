@@ -5,7 +5,10 @@ import "C"
 import (
     "unsafe"
     "errors"
+    "math"
     "math/big"
+    "encoding/binary"
+    "golang.org/x/crypto/blake2b"
 )
 
 /*
@@ -278,8 +281,51 @@ func (m *Point) Invert() error {
     return nil
 }
 
-func UnsafeHashToPoint() {
-    // TODO: Hash arbitrary data into a valid EC point.
+func UnsafeHashToPoint(data []byte, curve Curve, label string) (Point, error) {
+    // Hashes arbitrary data into a valid EC point of the specified curve,
+    // using the try-and-increment method.
+    // It admits an optional label as an additional input to the hash function.
+    // It uses BLAKE2b (with a digest size of 64 bytes) as the internal hash function.
+
+    // WARNING: Do not use when the input data is secret, as this implementation is not
+    // in constant time, and hence, it is not safe with respect to timing attacks.
+    // TODO: Check how to uniformly generate ycoords. Currently, it only outputs points
+    // where ycoord is even (i.e., starting with 0x02 in compressed notation)
+
+    // We use a 32-bit counter as additional input
+    max := uint32(math.Exp2(32) - 1)
+    bs := make([]byte, 4)
+
+    for i := uint32(1); i < max; i++ {
+        binary.BigEndian.PutUint32(bs, i)
+
+        bytes := append([]byte(label), bs...)
+        bytes = append(bytes, data...)
+
+        hash := blake2b.Sum512(bytes)
+
+        var compress []byte = make([]byte, 1)
+        compress[0] = byte(2)
+
+        compressed02 := append(compress, hash[:32]...)
+
+        point, err := Bytes2Point(compressed02, curve)
+
+        if err != nil {
+            // TODO: Catching Exceptions
+            // We want to catch specific InternalExceptions:
+            // - Point not in the curve (code 107)
+            // - Invalid compressed point (code 110)
+            // https://github.com/openssl/openssl/blob/master/include/openssl/ecerr.h#L228
+            // return Point{}, err
+            continue
+        } else {
+            return point, nil
+        }
+    }
+
+    // Only happens with probability 2^(-32)
+    return Point{}, errors.New("Could not hash input into the curve")
 }
 
 func (m Point) Copy() (Point, error) {
