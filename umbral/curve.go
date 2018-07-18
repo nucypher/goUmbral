@@ -44,6 +44,10 @@ func (m Curve) Equals(other Curve) bool {
     return m.NID == other.NID
 }
 
+func (m Curve) Size() uint {
+    return GetECGroupDegree(m.Group)
+}
+
 func (m Curve) Copy() (Curve, error) {
     // Return a deep copy of a Curve.
     group := C.EC_GROUP_dup(m.Group)

@@ -36,8 +36,20 @@ func GetNewPoint(point ECPoint, curve Curve) (Point, error) {
     return Point{ECPoint: point, Curve: curve}, err
 }
 
-func PointLength(curve Curve) {
-    // TODO: Return the size of a point given the curve.
+func PointLength(curve Curve, isCompressed bool) uint {
+    // Returns the size (in bytes) of a compressed Point given a curve.
+    // If no curve is provided, it returns 0.
+    if curve.Group == nil {
+        return 0
+    }
+
+    coordSize := curve.Size()
+
+    if isCompressed {
+        return 1 + coordSize
+    } else {
+        return 1 + 2 * coordSize
+    }
 }
 
 func GenRandPoint(curve Curve) (Point, error) {
@@ -104,8 +116,52 @@ func Bytes2Point(data []byte, curve Curve) (Point, error) {
         return Point{}, errors.New("No bytes failure")
     }
 
-    // TODO: Implement this when PointLength is finished.
-    return Point{}, nil
+    compressedSize := PointLength(curve, true)
+
+    // Check if compressed
+    if data[0] == 2 || data[0] == 3 {
+        if uint(len(data)) != compressedSize {
+            return Point{}, errors.New("X coordinate too large for curve")
+        }
+
+        // affineX might need to be freed.
+        affineX := BytesToBN(data[1:])
+
+        typeY := data[0] - 2
+
+        point, err := GetNewECPoint(curve)
+        if err != nil {
+            return Point{}, err
+        }
+
+        ctx := C.BN_CTX_new()
+        defer FreeBNCTX(ctx)
+
+        result := C.EC_POINT_set_compressed_coordinates_GFp(
+            curve.Group, point, affineX, C.int(typeY), ctx)
+        if result != 1 {
+            return Point{}, errors.New("Compressed deserialization failure")
+        }
+        return Point{point, curve}, nil
+    } else if data[0] == 4 {
+        // Handle uncompressed point
+        coordSize := compressedSize - 1
+
+        uncompressedSize := 1 + (2 * coordSize)
+
+        if uint(len(data)) != uncompressedSize {
+            return Point{}, errors.New("Uncompressed point does not have right size")
+        }
+        affineX := big.NewInt(0)
+        affineY := big.NewInt(0)
+
+        affineX.SetBytes(data[1:coordSize+1])
+        affineY.SetBytes(data[1+coordSize:])
+
+        return Affine2Point(affineX, affineY, curve)
+    } else {
+        return Point{}, errors.New("Invalid point serialization")
+    }
 }
 
 func (m Point) ToBytes() ([]byte, error) {
