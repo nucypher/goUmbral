@@ -1,0 +1,40 @@
+{
+  "name": "Test vectors for CurveBN operations",
+  "params": "default",
+  "first operand": "6f16d45495d5d1a99a75f673c90af464e473ab18be47dd5332bef3d570341bfc",
+  "second operand": "982ab4a414bb6f06a04b93497a110cf9716b7acb5fe3f65ab6fc26464a48b20e",
+  "vectors": [
+    {
+      "operation": "Addition",
+      "result": "074188f8aa9140b03ac189bd431c015f9b3048fd6ee3337229e8bb8eea468cc9"
+    },
+    {
+      "operation": "Subtraction",
+      "result": "d6ec1fb0811a62a2fa2a632a4ef9e76a2db70d340dac87343b952c1bf621ab2f"
+    },
+    {
+      "operation": "Multiplication",
+      "result": "563408afdcf2a41b7e63187ac4a4f7739ad8d14cb97a4336b98cc2d1b64de8e7"
+    },
+    {
+      "operation": "Division",
+      "result": "895385bd7dcfedc70444bc89b03c6cce748e67338d2a97d26b93186ee098c041"
+    },
+    {
+      "operation": "Pow",
+      "result": "280092f9f5f1b7e212387506bde4c6009a2910b711157bfbf096046d4dbc271d"
+    },
+    {
+      "operation": "Mod",
+      "result": "6f16d45495d5d1a99a75f673c90af464e473ab18be47dd5332bef3d570341bfc"
+    },
+    {
+      "operation": "Inverse",
+      "result": "9d83ce74f3edef6c0201c28c11419d50804d75c3e49a59f7f6b167c329ee17c4"
+    },
+    {
+      "operation": "Neg",
+      "result": "90e92bab6a2a2e56658a098c36f50b99d63b31cdf100c2e88d136ab760022545"
+    }
+  ]
+}
