@@ -204,10 +204,10 @@ func (m Point) ToBytes(isCompressed bool) ([]byte, error) {
     }
 }
 
-func GetPointFromGenerator(curve Curve) (ECPoint, Curve) {
+func GetGeneratorFromCurve(curve Curve) Point {
     // Consider making a copy of this point
     // so there are not any double frees.
-    return curve.Generator, curve
+    return Point{curve.Generator, curve}
 }
 
 func (m Point) Equals(other Point) (bool, error) {
@@ -295,7 +295,7 @@ func (m *Point) Invert() error {
     return nil
 }
 
-func UnsafeHashToPoint(data []byte, curve Curve, label string) (Point, error) {
+func UnsafeHashToPoint(data []byte, params UmbralParameters, label []byte) (Point, error) {
     // Hashes arbitrary data into a valid EC point of the specified curve,
     // using the try-and-increment method.
     // It admits an optional label as an additional input to the hash function.
@@ -313,7 +313,7 @@ func UnsafeHashToPoint(data []byte, curve Curve, label string) (Point, error) {
     for i := uint32(1); i < max; i++ {
         binary.BigEndian.PutUint32(bs, i)
 
-        bytes := append([]byte(label), bs...)
+        bytes := append(label, bs...)
         bytes = append(bytes, data...)
 
         hash := blake2b.Sum512(bytes)
@@ -321,9 +321,9 @@ func UnsafeHashToPoint(data []byte, curve Curve, label string) (Point, error) {
         var compress []byte = make([]byte, 1)
         compress[0] = byte(2)
 
-        compressed02 := append(compress, hash[:32]...)
+        compressed02 := append(compress, hash[:params.Size]...)
 
-        point, err := Bytes2Point(compressed02, curve)
+        point, err := Bytes2Point(compressed02, params.Curve)
 
         if err != nil {
             // TODO: Catching Exceptions
