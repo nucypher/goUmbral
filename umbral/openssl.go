@@ -174,6 +174,12 @@ func BNToBigInt(bn BigNum) *big.Int {
     return bInt
 }
 
+func BytesToBigInt(bytes []byte) *big.Int {
+    bInt := big.NewInt(0)
+    bInt.SetBytes(bytes)
+    return bInt
+}
+
 func BytesToBN(bytes []byte) BigNum {
     cBytes := C.CBytes(bytes)
     defer C.free(cBytes)

@@ -1,0 +1,1079 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/Karce/goUmbral/umbral/curve.go (81.0%)</option>
+				
+				<option value="file1">github.com/Karce/goUmbral/umbral/modbn.go (86.7%)</option>
+				
+				<option value="file2">github.com/Karce/goUmbral/umbral/openssl.go (88.0%)</option>
+				
+				<option value="file3">github.com/Karce/goUmbral/umbral/point.go (81.4%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package umbral
+
+// #include "shim.h"
+import "C"
+import (
+    "errors"
+    "unsafe"
+)
+
+// Supported curves
+const (
+    SECP256R1 = C.NID_X9_62_prime256v1
+    SECP256K1 = C.NID_secp256k1
+    SECP384R1 = C.NID_secp384r1
+)
+
+type Curve struct {
+    NID int
+    Group ECGroup
+    Order BigNum
+    Generator ECPoint
+}
+
+func GetNewCurve(nid C.int) (Curve, error) <span class="cov8" title="1">{
+    // Do not use cast from an int to a C.int with an unsupported curve nid.
+    // Use the constant curve values above instead.
+
+    // Runtime check below just to be sure.
+    // Could default to a certain curve instead of closing.
+    switch nid </span>{
+    case SECP256R1:</span><span class="cov8" title="1">
+    case SECP256K1:</span><span class="cov8" title="1">
+    case SECP384R1:</span><span class="cov8" title="1">
+    default:<span class="cov0" title="0">
+        return Curve{}, errors.New("This curve is not supported. Please use one of the constant curves defined in curve.go.")</span>
+    }
+    <span class="cov8" title="1">group := GetECGroupByCurveNID(int(nid))
+    order := GetECOrderByGroup(group)
+    generator := GetECGeneratorByGroup(group)
+    return Curve{NID: int(nid), Group: group, Order: order, Generator: generator}, nil</span>
+}
+
+func (m Curve) Equals(other Curve) bool <span class="cov8" title="1">{
+    return m.NID == other.NID
+}</span>
+
+func (m Curve) Size() uint <span class="cov8" title="1">{
+    bits := GetECGroupDegree(m.Group)
+    return (bits + 7) / 8
+}</span>
+
+func (m Curve) Copy() (Curve, error) <span class="cov8" title="1">{
+    // Return a deep copy of a Curve.
+    group := C.EC_GROUP_dup(m.Group)
+    if unsafe.Pointer(group) == C.NULL </span><span class="cov0" title="0">{
+        return Curve{}, errors.New("EC_GROUP_dup failure")
+    }</span>
+    <span class="cov8" title="1">order := C.BN_dup(m.Order)
+    if unsafe.Pointer(order) == C.NULL </span><span class="cov0" title="0">{
+        return Curve{}, errors.New("BN_dup failure")
+    }</span>
+    <span class="cov8" title="1">generator := C.EC_POINT_dup(m.Generator, group)
+    if unsafe.Pointer(generator) == C.NULL </span><span class="cov0" title="0">{
+        return Curve{}, errors.New("EC_POINT_dup failure")
+    }</span>
+    <span class="cov8" title="1">return Curve{m.NID, group, order, generator}, nil</span>
+}
+
+func (m *Curve) Free() <span class="cov8" title="1">{
+    FreeBigNum(m.Order)
+    FreeECGroup(m.Group)
+    // The generator is already freed by freeing the EC_GROUP.
+    // FreeECPoint(m.Generator)
+}</span>
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package umbral
+
+// #include "shim.h"
+import "C"
+import (
+    "unsafe"
+    "golang.org/x/crypto/blake2b"
+    "errors"
+)
+
+/*
+Represents an OpenSSL BIGNUM modulo the order of a curve. Some of these
+operations will only work with prime numbers
+*/
+
+type ModBigNum struct {
+   Bignum BigNum
+   Curve Curve
+}
+
+func GetNewModBN(cNum BigNum, curve Curve) (ModBigNum, error) <span class="cov8" title="1">{
+    // Return the ModBigNum only if the provided Bignum is within the order of the curve.
+    if !BNIsWithinOrder(cNum, curve) </span><span class="cov8" title="1">{
+        return ModBigNum{}, errors.New("The provided BIGNUM is not on the provided curve.")
+    }</span>
+    <span class="cov8" title="1">return ModBigNum{Bignum: cNum, Curve: curve}, nil</span>
+}
+
+func ExpectedBytesLength(curve Curve) {<span class="cov0" title="0">
+    // TODO: Return the size of a modbn given the curve.
+}</span>
+
+func GenRandModBN(curve Curve) (ModBigNum, error) <span class="cov8" title="1">{
+    /*
+    Returns a ModBigNum with a cryptographically secure OpenSSL BIGNUM
+    based on the given curve.
+    */
+
+    // newRandBN needs to be from 1 inclusive to curve exclusive
+    if curve.Order == nil </span><span class="cov8" title="1">{
+        return ModBigNum{}, errors.New("The order of the curve is nil. Construct a valid curve first.")
+    }</span>
+    <span class="cov8" title="1">newRandBN := RandRangeBN(curve.Order)
+
+    if !BNIsWithinOrder(newRandBN, curve) </span><span class="cov0" title="0">{
+        FreeBigNum(newRandBN)
+        return GenRandModBN(curve)
+    }</span>
+    <span class="cov8" title="1">return ModBigNum{Bignum: newRandBN, Curve: curve}, nil</span>
+}
+
+func Int2ModBN(num int, curve Curve) (ModBigNum, error) <span class="cov8" title="1">{
+    newBN := IntToBN(num)
+    if !BNIsWithinOrder(newBN, curve) </span><span class="cov0" title="0">{
+        return ModBigNum{}, errors.New("Bignum is not within the curve")
+    }</span>
+
+    <span class="cov8" title="1">return ModBigNum{Bignum: newBN, Curve: curve}, nil</span>
+}
+
+func Hash2ModBN(bytes []byte, curve Curve) (ModBigNum, error) <span class="cov8" title="1">{
+    // Returns a ModBigNum based on provided data hashed by blake2b.
+    hash := blake2b.Sum512(bytes)
+    hashBN := BytesToBN(hash[:])
+
+    oneBN := IntToBN(1)
+    defer FreeBigNum(oneBN)
+
+    orderMinusOne := SubBN(curve.Order, oneBN)
+    defer FreeBigNum(orderMinusOne)
+
+    moddedResult := ModBN(hashBN, orderMinusOne)
+    defer FreeBigNum(moddedResult)
+
+    bignum := AddBN(moddedResult, oneBN)
+
+    return ModBigNum{Bignum: bignum, Curve: curve}, nil
+}</span>
+
+func Bytes2ModBN(data []byte, curve Curve) (ModBigNum, error) <span class="cov8" title="1">{
+    // Returns the ModBigNum associated with the bytes-converted bignum
+    // provided by the data argument.
+    if len(data) == 0 </span><span class="cov8" title="1">{
+        return ModBigNum{}, errors.New("No bytes failure")
+    }</span>
+
+    <span class="cov8" title="1">bignum := BytesToBN(data)
+    if !BNIsWithinOrder(bignum, curve) </span><span class="cov0" title="0">{
+        return ModBigNum{}, errors.New("Bignum is not within the curve")
+    }</span>
+
+    <span class="cov8" title="1">return ModBigNum{Bignum: bignum, Curve: curve}, nil</span>
+}
+
+func (m ModBigNum) ToBytes() []byte <span class="cov8" title="1">{
+    return BNToBytes(m.Bignum)
+}</span>
+
+func (m ModBigNum) Equals(other ModBigNum) bool <span class="cov8" title="1">{
+    return CompareBN(m.Bignum, other.Bignum) == 0
+}</span>
+
+func (m ModBigNum) Compare(other ModBigNum) int <span class="cov8" title="1">{
+    // -1 less than, 0 is equal to, 1 is greater than
+    return CompareBN(m.Bignum, other.Bignum)
+}</span>
+
+func (m *ModBigNum) Pow(other ModBigNum) error <span class="cov8" title="1">{
+    /*
+    Performs a BN_mod_exp on two BIGNUMS.
+    WARNING: Only in constant time if BN_FLG_CONSTTIME is set on the BN.
+    */
+    power := GetBigNum()
+
+    bnCtx := C.BN_CTX_new()
+    defer FreeBNCTX(bnCtx)
+
+    bnMontCtx := TmpBNMontCTX(m.Curve.Order)
+    defer FreeBNMontCTX(bnMontCtx)
+    result := C.BN_mod_exp_mont_consttime(power,
+        m.Bignum, other.Bignum, m.Curve.Order, bnCtx, bnMontCtx)
+
+    if result != 1 </span><span class="cov0" title="0">{
+        return errors.New("BN_mod_exp failure")
+    }</span>
+
+    <span class="cov8" title="1">FreeBigNum(m.Bignum)
+
+    m.Bignum = power
+    return nil</span>
+}
+
+func (m *ModBigNum) Mul(other ModBigNum) error <span class="cov8" title="1">{
+    /*
+    Performs a BN_mod_mul between two BIGNUMS.
+    */
+    product := GetBigNum()
+
+    bnCtx := C.BN_CTX_new()
+    defer FreeBNCTX(bnCtx)
+
+    result := C.BN_mod_mul(product, m.Bignum, other.Bignum, m.Curve.Order, bnCtx)
+    if result != 1 </span><span class="cov0" title="0">{
+        return errors.New("BN_mod_mul failure")
+    }</span>
+    <span class="cov8" title="1">FreeBigNum(m.Bignum)
+
+    m.Bignum = product
+    return nil</span>
+}
+
+func (m *ModBigNum) Div(other ModBigNum) error <span class="cov8" title="1">{
+    tmpBN, err := other.Copy()
+    if err != nil </span><span class="cov0" title="0">{
+        return err
+    }</span>
+    <span class="cov8" title="1">defer tmpBN.Free()
+
+    err = tmpBN.Invert()
+    if err != nil </span><span class="cov0" title="0">{
+        return err
+    }</span>
+
+    <span class="cov8" title="1">err = m.Mul(tmpBN)
+    if err != nil </span><span class="cov0" title="0">{
+        return err
+    }</span>
+
+    <span class="cov8" title="1">return nil</span>
+}
+
+func (m *ModBigNum) Add(other ModBigNum) error <span class="cov8" title="1">{
+    sum := GetBigNum()
+
+    bnCtx := C.BN_CTX_new()
+    defer FreeBNCTX(bnCtx)
+
+    result := C.BN_mod_add(sum, m.Bignum, other.Bignum, m.Curve.Order, bnCtx)
+    if result != 1 </span><span class="cov0" title="0">{
+        return errors.New("BN_mod_add failure")
+    }</span>
+
+    <span class="cov8" title="1">FreeBigNum(m.Bignum)
+
+    m.Bignum = sum
+    return nil</span>
+}
+
+func (m *ModBigNum) Sub(other ModBigNum) error <span class="cov8" title="1">{
+    sub := GetBigNum()
+
+    bnCtx := C.BN_CTX_new()
+    defer FreeBNCTX(bnCtx)
+
+    result := C.BN_mod_sub(sub, m.Bignum, other.Bignum, m.Curve.Order, bnCtx)
+    if result != 1 </span><span class="cov0" title="0">{
+        return errors.New("BN_mod_sub failure")
+    }</span>
+
+    <span class="cov8" title="1">FreeBigNum(m.Bignum)
+
+    m.Bignum = sub
+    return nil</span>
+}
+
+func (m *ModBigNum) Invert() error <span class="cov8" title="1">{
+    inverse := GetBigNum()
+
+    bnCtx := C.BN_CTX_new()
+    defer FreeBNCTX(bnCtx)
+
+    result := C.BN_mod_inverse(inverse, m.Bignum, m.Curve.Order, bnCtx)
+
+    if unsafe.Pointer(result) == C.NULL </span><span class="cov0" title="0">{
+        return errors.New("BN_mod_inverse failure")
+    }</span>
+
+    <span class="cov8" title="1">FreeBigNum(m.Bignum)
+
+    m.Bignum = inverse
+    return nil</span>
+}
+
+func (m *ModBigNum) Mod(other ModBigNum) error <span class="cov8" title="1">{
+    rem := GetBigNum()
+
+    bnCtx := C.BN_CTX_new()
+    defer FreeBNCTX(bnCtx)
+
+    result := C.BN_nnmod(rem, m.Bignum, other.Bignum, bnCtx)
+    if result != 1 </span><span class="cov0" title="0">{
+        return errors.New("BN_nnmod failure")
+    }</span>
+
+    <span class="cov8" title="1">FreeBigNum(m.Bignum)
+
+    m.Bignum = rem
+    return nil</span>
+}
+
+func (m ModBigNum) Copy() (ModBigNum, error) <span class="cov8" title="1">{
+    // Deep copy of a ModBigNum EXCLUDING the curve.
+    bn := C.BN_dup(m.Bignum)
+    if unsafe.Pointer(bn) == C.NULL </span><span class="cov0" title="0">{
+        return ModBigNum{}, errors.New("BN_dup failure")
+    }</span>
+    <span class="cov8" title="1">return ModBigNum{Bignum: bn, Curve: m.Curve}, nil</span>
+}
+
+func (m *ModBigNum) Free() <span class="cov8" title="1">{
+    FreeBigNum(m.Bignum)
+    // Do not free the curve.
+    // m.Curve.Free()
+}</span>
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package umbral
+
+// #include "shim.h"
+import "C"
+import (
+    "unsafe"
+    "math/big"
+    "log"
+    "errors"
+)
+
+type BigNum *C.BIGNUM
+type BNCtx *C.BN_CTX
+type BNMontCtx *C.BN_MONT_CTX
+type ECGroup *C.EC_GROUP
+type ECPoint *C.EC_POINT
+
+func GetBigNum() BigNum <span class="cov8" title="1">{
+    // bn must be freed later by the calling function.
+    var bn BigNum = C.BN_secure_new()
+    C.BN_set_flags(bn, C.BN_FLG_CONSTTIME)
+    // Both BN_FLG_CONSTTIME and BN_FLG_SECURE are set.
+    return bn
+}</span>
+
+func GetECGroupByCurveNID(curveNid int) ECGroup <span class="cov8" title="1">{
+    // curve must be freed later by the calling function.
+    var curve *C.EC_GROUP = C.EC_GROUP_new_by_curve_name(C.int(curveNid))
+    if unsafe.Pointer(curve) == C.NULL </span><span class="cov0" title="0">{
+        // Failure
+        log.Fatal("Curve group lookup failed")
+    }</span>
+    <span class="cov8" title="1">return curve</span>
+}
+
+func GetECOrderByGroup(group ECGroup) BigNum <span class="cov8" title="1">{
+    // order must be freed later by the calling function.
+    var order BigNum = GetBigNum()
+
+    var ctx *C.BN_CTX = C.BN_CTX_new()
+    defer FreeBNCTX(ctx)
+
+    result := int(C.EC_GROUP_get_order(group, order, ctx))
+    if result != 1 </span><span class="cov0" title="0">{
+        // Failure
+        log.Fatal("Curve order lookup failed")
+    }</span>
+    <span class="cov8" title="1">return order</span>
+}
+
+func GetECGeneratorByGroup(group ECGroup) ECPoint <span class="cov8" title="1">{
+    // generator should not be freed directly by the calling function.
+    // Free the EC_GROUP instead.
+    var generator ECPoint = C.EC_GROUP_get0_generator(group)
+
+    if unsafe.Pointer(generator) == C.NULL </span><span class="cov0" title="0">{
+        // Failure
+        log.Fatal("Generator failure")
+    }</span>
+    <span class="cov8" title="1">return generator</span>
+}
+
+func FreeBigNum(bn BigNum) <span class="cov8" title="1">{
+    C.BN_clear_free(bn)
+}</span>
+
+func FreeECPoint(point ECPoint) <span class="cov8" title="1">{
+    C.EC_POINT_clear_free(point)
+}</span>
+
+func FreeECGroup(group ECGroup) <span class="cov8" title="1">{
+    C.EC_GROUP_free(group)
+}</span>
+
+func FreeBNCTX(ctx BNCtx) <span class="cov8" title="1">{
+    C.BN_CTX_free(ctx)
+}</span>
+
+func FreeBNMontCTX(montCtx BNMontCtx) <span class="cov8" title="1">{
+    C.BN_MONT_CTX_free(montCtx)
+}</span>
+
+func GetECGroupDegree(group ECGroup) uint <span class="cov8" title="1">{
+    return uint(C.EC_GROUP_get_degree(group))
+}</span>
+
+func BNIsWithinOrder(checkBN BigNum, curve Curve) bool <span class="cov8" title="1">{
+    zero := IntToBN(0)
+    defer FreeBigNum(zero)
+
+    checkSign := C.BN_cmp(checkBN, zero)
+    rangeCheck := C.BN_cmp(checkBN, curve.Order)
+
+    return checkSign == 1 &amp;&amp; rangeCheck == -1
+}</span>
+
+func GetNewECPoint(curve Curve) (ECPoint, error) <span class="cov8" title="1">{
+    // newPoint must be freed later by the calling function.
+    newPoint := C.EC_POINT_new(curve.Group)
+    if unsafe.Pointer(newPoint) == C.NULL </span><span class="cov8" title="1">{
+        // Failure
+        return newPoint, errors.New("New EC Point failure")
+    }</span>
+    <span class="cov8" title="1">return newPoint, nil</span>
+}
+
+func GetECPointFromAffine(affineX, affineY BigNum, curve Curve) (ECPoint, error) <span class="cov8" title="1">{
+    // newPoint must be freed later by the calling function.
+    newPoint, err := GetNewECPoint(curve)
+    if err != nil </span><span class="cov0" title="0">{
+        return newPoint, err
+    }</span>
+
+    <span class="cov8" title="1">ctx := C.BN_CTX_new()
+    defer FreeBNCTX(ctx)
+
+    result := C.EC_POINT_set_affine_coordinates_GFp(
+            curve.Group, newPoint, affineX, affineY, ctx)
+    if result != 1 </span><span class="cov0" title="0">{
+        // Failure
+        return newPoint, errors.New("EC Point lookup failure")
+    }</span>
+    <span class="cov8" title="1">return newPoint, nil</span>
+}
+
+func GetAffineCoordsFromECPoint(point ECPoint, curve Curve) (BigNum, BigNum, error) <span class="cov8" title="1">{
+    // affineX and affineY must be freed later by the calling function.
+    affineX := GetBigNum()
+    affineY := GetBigNum()
+
+    ctx := C.BN_CTX_new()
+    defer FreeBNCTX(ctx)
+
+    result := C.EC_POINT_get_affine_coordinates_GFp(
+            curve.Group, point, affineX, affineY, ctx)
+    if result != 1 </span><span class="cov0" title="0">{
+        // Failure
+        return affineX, affineY, errors.New("Affine lookup failure")
+    }</span>
+    <span class="cov8" title="1">return affineX, affineY, nil</span>
+}
+
+func TmpBNMontCTX(modulus BigNum) BNMontCtx <span class="cov8" title="1">{
+    ctx := C.BN_CTX_new()
+    defer FreeBNCTX(ctx)
+
+    // montCtx must be freed later by the calling function.
+    montCtx := C.BN_MONT_CTX_new()
+    if unsafe.Pointer(montCtx) == C.NULL </span><span class="cov0" title="0">{
+        log.Fatal("New Montgomery CTX allocation failure")
+    }</span>
+
+    <span class="cov8" title="1">result := C.BN_MONT_CTX_set(montCtx, modulus, ctx)
+    if result != 1 </span><span class="cov0" title="0">{
+        log.Fatal("New Montgomery CTX set with modulus failure")
+    }</span>
+    <span class="cov8" title="1">return montCtx</span>
+}
+
+func IntToBN(sInt int) BigNum <span class="cov8" title="1">{
+    bInt := big.NewInt(int64(sInt))
+    return BigIntToBN(bInt)
+}</span>
+
+func BigIntToBN(bInt *big.Int) BigNum <span class="cov8" title="1">{
+    goIntAsBytes := bInt.Bytes()
+    return BytesToBN(goIntAsBytes)
+}</span>
+
+func BNToBigInt(bn BigNum) *big.Int <span class="cov8" title="1">{
+    bytes := BNToBytes(bn)
+    bInt := big.NewInt(0)
+    bInt.SetBytes(bytes)
+    return bInt
+}</span>
+
+func BytesToBigInt(bytes []byte) *big.Int <span class="cov8" title="1">{
+    bInt := big.NewInt(0)
+    bInt.SetBytes(bytes)
+    return bInt
+}</span>
+
+func BytesToBN(bytes []byte) BigNum <span class="cov8" title="1">{
+    cBytes := C.CBytes(bytes)
+    defer C.free(cBytes)
+    // cBN must be freed later by the calling function.
+    var cBN BigNum = C.BN_bin2bn((*C.uint8_t)(cBytes), C.int(len(bytes)), GetBigNum())
+    if unsafe.Pointer(cBN) == C.NULL </span><span class="cov0" title="0">{
+        // Failure
+        log.Fatal("Allocation failure")
+    }</span>
+    <span class="cov8" title="1">return cBN</span>
+}
+
+func BNToBytes(cBN BigNum) []byte <span class="cov8" title="1">{
+    size := SizeOfBN(cBN)
+    space := make([]byte, size)
+    cSpace := C.CBytes(space)
+    defer C.free(cSpace)
+
+    written := C.BN_bn2bin(cBN, (*C.uint8_t)(cSpace))
+    if int(written) != size </span><span class="cov0" title="0">{
+        log.Fatal("Size of written doesn't equal size of bignum")
+    }</span>
+    <span class="cov8" title="1">bytes := C.GoBytes(cSpace, C.int(size))
+    return bytes</span>
+}
+
+func SizeOfBN(cBN BigNum) int <span class="cov8" title="1">{
+    // BN_num_bytes is a macro for this.
+    return int((C.BN_num_bits(cBN)+7)/8)
+}</span>
+
+func CompareBN(cBN1, cBN2 BigNum) int <span class="cov8" title="1">{
+    return int(C.BN_cmp(cBN1, cBN2))
+}</span>
+
+func MultiplyBN(cBN1, cBN2 BigNum) BigNum <span class="cov8" title="1">{
+    // newBN must be freed later by the calling function.
+    newBN := GetBigNum()
+    ctx := C.BN_CTX_new()
+    defer FreeBNCTX(ctx)
+
+    result := int(C.BN_mul(newBN, cBN1, cBN2, ctx))
+    if result != 1 </span><span class="cov0" title="0">{
+        // Failure
+        log.Fatal("Multiplication failure")
+    }</span>
+    <span class="cov8" title="1">return newBN</span>
+}
+
+func AddBN(cBN1, cBN2 BigNum) BigNum <span class="cov8" title="1">{
+    // newBN must be free later by the calling function.
+    newBN := GetBigNum()
+    result := C.BN_add(newBN, cBN1, cBN2)
+    if result != 1 </span><span class="cov0" title="0">{
+        log.Fatal("Addition failure")
+    }</span>
+    <span class="cov8" title="1">return newBN</span>
+}
+
+func SubBN(cBN1, cBN2 BigNum) BigNum <span class="cov8" title="1">{
+    // newBN must be free later by the calling function.
+    newBN := GetBigNum()
+    result := C.BN_sub(newBN, cBN1, cBN2)
+    if result != 1 </span><span class="cov0" title="0">{
+        log.Fatal("Subtraction failure")
+    }</span>
+    <span class="cov8" title="1">return newBN</span>
+}
+
+func DivBN(numerator, divisor BigNum) (BigNum, BigNum) <span class="cov8" title="1">{
+    quotient := GetBigNum()
+    rem := GetBigNum()
+
+    bnCtx := C.BN_CTX_new()
+    defer C.BN_CTX_free(bnCtx)
+
+    result := C.BN_div(quotient, rem, numerator, divisor, bnCtx)
+    if result != 1 </span><span class="cov0" title="0">{
+        log.Fatal("Division failure")
+    }</span>
+    <span class="cov8" title="1">return quotient, rem</span>
+}
+
+func ModBN(numerator, divisor BigNum) BigNum <span class="cov8" title="1">{
+    bnCtx := C.BN_CTX_new()
+    defer C.BN_CTX_free(bnCtx)
+    // This is equivalent to C.BN_mod(bignum, hashDigest, orderMinusOne, bnCtx)
+    // but it uses BN_div because it isn't a macro.
+    quotient, rem := DivBN(numerator, divisor)
+    defer FreeBigNum(quotient)
+    return rem
+}</span>
+
+func BNToDecStr(cBN BigNum) string <span class="cov8" title="1">{
+    cString := C.BN_bn2dec(cBN)
+    defer C.free(unsafe.Pointer(cString))
+
+    return C.GoString(cString)
+}</span>
+
+func RandRangeBN(max BigNum) BigNum <span class="cov8" title="1">{
+    // randBN must be freed later by the calling function.
+    randBN := GetBigNum()
+    result := int(C.BN_rand_range(randBN, max))
+    if result != 1 </span><span class="cov0" title="0">{
+        // Failure
+        log.Fatal("Random range returned failure")
+    }</span>
+    <span class="cov8" title="1">return randBN</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package umbral
+
+// #include "shim.h"
+import "C"
+import (
+    "unsafe"
+    "errors"
+    "math"
+    "math/big"
+    "encoding/binary"
+    "golang.org/x/crypto/blake2b"
+)
+
+/*
+Represents an OpenSSL EC_POINT.
+*/
+
+type Point struct {
+   ECPoint ECPoint
+   Curve Curve
+}
+
+func GetNewPoint(point ECPoint, curve Curve) (Point, error) <span class="cov8" title="1">{
+    // Generate a new Point struct based on the arguments provided.
+    //
+    // If point is nil then GetNewPoint will generate a new cryptographically secure
+    // ECPoint and check for errors before returning the new Point.
+    //
+    // if point is nil AND the curve group is also nil then
+    // GetNewPoint will fail and return the error.
+    var err error = nil
+    if point == nil </span><span class="cov8" title="1">{
+        newPoint, err := GenRandPoint(curve)
+        if err != nil </span><span class="cov8" title="1">{
+            return Point{}, err
+        }</span>
+        <span class="cov8" title="1">return newPoint, err</span>
+    }
+    <span class="cov8" title="1">return Point{ECPoint: point, Curve: curve}, err</span>
+}
+
+func PointLength(curve Curve, isCompressed bool) uint <span class="cov8" title="1">{
+    // Returns the size (in bytes) of a compressed Point given a curve.
+    // If no curve is provided, it returns 0.
+    if curve.Group == nil </span><span class="cov0" title="0">{
+        return 0
+    }</span>
+
+    <span class="cov8" title="1">coordSize := curve.Size()
+
+    if isCompressed </span><span class="cov8" title="1">{
+        return 1 + coordSize
+    }</span> else<span class="cov0" title="0"> {
+        return 1 + 2 * coordSize
+    }</span>
+}
+
+func GenRandPoint(curve Curve) (Point, error) <span class="cov8" title="1">{
+    // Returns a Point struct with a cryptographically
+    // secure EC_POINT based on the provided curve.
+    randPoint, err := GetNewECPoint(curve)
+    if err != nil </span><span class="cov8" title="1">{
+        return Point{}, err
+    }</span>
+
+    <span class="cov8" title="1">randModBN, err := GenRandModBN(curve)
+    if err != nil </span><span class="cov8" title="1">{
+        return Point{}, err
+    }</span>
+    <span class="cov8" title="1">defer randModBN.Free()
+
+    ctx := C.BN_CTX_new()
+    defer FreeBNCTX(ctx)
+
+    result := C.EC_POINT_mul(curve.Group, randPoint, (*C.BIGNUM)(C.NULL),
+        curve.Generator, randModBN.Bignum, ctx)
+
+    if result != 1 </span><span class="cov0" title="0">{
+        return Point{}, errors.New("EC_POINT_mul failure")
+    }</span>
+
+    <span class="cov8" title="1">return Point{ECPoint: randPoint, Curve: curve}, nil</span>
+}
+
+func Affine2Point(affineX, affineY *big.Int, curve Curve) (Point, error) <span class="cov8" title="1">{
+    /*
+    Returns a Point object from the given affine coordinates.
+    */
+    x := BigIntToBN(affineX)
+    y := BigIntToBN(affineY)
+    if !BNIsWithinOrder(x, curve) || !BNIsWithinOrder(y, curve) </span><span class="cov0" title="0">{
+        return Point{}, errors.New("x or y are not within the curve")
+    }</span>
+    <span class="cov8" title="1">point, err := GetECPointFromAffine(x, y, curve)
+    if err != nil </span><span class="cov0" title="0">{
+        return Point{}, err
+    }</span>
+
+    <span class="cov8" title="1">return Point{ECPoint: point, Curve: curve}, nil</span>
+}
+
+func (m Point) ToAffine() (*big.Int, *big.Int, error) <span class="cov8" title="1">{
+    /*
+    Returns an x and y coordinate of the Point as a Go big.Int.
+    */
+    xBN, yBN, err := GetAffineCoordsFromECPoint(m.ECPoint, m.Curve)
+    defer FreeBigNum(xBN)
+    defer FreeBigNum(yBN)
+    if err != nil </span><span class="cov0" title="0">{
+        return nil, nil, err
+    }</span>
+    <span class="cov8" title="1">goX := BNToBigInt(xBN)
+    goY := BNToBigInt(yBN)
+    return goX, goY, nil</span>
+}
+
+func Bytes2Point(data []byte, curve Curve) (Point, error) <span class="cov8" title="1">{
+    if len(data) == 0 </span><span class="cov0" title="0">{
+        return Point{}, errors.New("No bytes failure")
+    }</span>
+
+    <span class="cov8" title="1">compressedSize := PointLength(curve, true)
+
+    // Check if compressed
+    if data[0] == 2 || data[0] == 3 </span><span class="cov8" title="1">{
+        if uint(len(data)) != compressedSize </span><span class="cov0" title="0">{
+            return Point{}, errors.New("X coordinate too large for curve")
+        }</span>
+
+        // affineX might need to be freed.
+        <span class="cov8" title="1">affineX := BytesToBN(data[1:])
+
+        typeY := data[0] - 2
+
+        point, err := GetNewECPoint(curve)
+        if err != nil </span><span class="cov0" title="0">{
+            return Point{}, err
+        }</span>
+
+        <span class="cov8" title="1">ctx := C.BN_CTX_new()
+        defer FreeBNCTX(ctx)
+
+        result := C.EC_POINT_set_compressed_coordinates_GFp(
+            curve.Group, point, affineX, C.int(typeY), ctx)
+        if result != 1 </span><span class="cov0" title="0">{
+            return Point{}, errors.New("Compressed deserialization failure")
+        }</span>
+        <span class="cov8" title="1">return Point{point, curve}, nil</span>
+    } else<span class="cov8" title="1"> if data[0] == 4 </span><span class="cov8" title="1">{
+        // Handle uncompressed point
+        coordSize := compressedSize - 1
+
+        uncompressedSize := 1 + (2 * coordSize)
+
+        if uint(len(data)) != uncompressedSize </span><span class="cov0" title="0">{
+            return Point{}, errors.New("Uncompressed point does not have right size")
+        }</span>
+        <span class="cov8" title="1">affineX := big.NewInt(0)
+        affineY := big.NewInt(0)
+
+        affineX.SetBytes(data[1:coordSize+1])
+        affineY.SetBytes(data[1+coordSize:])
+
+        return Affine2Point(affineX, affineY, curve)</span>
+    } else<span class="cov0" title="0"> {
+        return Point{}, errors.New("Invalid point serialization")
+    }</span>
+}
+
+func (m Point) ToBytes(isCompressed bool) ([]byte, error) <span class="cov8" title="1">{
+    // Returns the Point serialized as bytes.
+    // It will return a compressed form if isCompressed is set to True.
+    x, y, err := m.ToAffine()
+    if err != nil </span><span class="cov0" title="0">{
+        return nil, err
+    }</span>
+
+    <span class="cov8" title="1">if isCompressed </span><span class="cov8" title="1">{
+        yBytes := y.Bytes()
+        yBit := (yBytes[len(yBytes) - 1] &amp; byte(1)) + 2
+
+        var data []byte
+        data = append(data, yBit)
+        return append(data, x.Bytes()...), nil
+    }</span> else<span class="cov8" title="1"> {
+        var data []byte
+        data = append(data, byte(4))
+        data = append(data, x.Bytes()...)
+        return append(data, y.Bytes()...), nil
+    }</span>
+}
+
+func GetPointFromGenerator(curve Curve) (ECPoint, Curve) <span class="cov0" title="0">{
+    // Consider making a copy of this point
+    // so there are not any double frees.
+    return curve.Generator, curve
+}</span>
+
+func (m Point) Equals(other Point) (bool, error) <span class="cov8" title="1">{
+    if m.ECPoint == nil || other.ECPoint == nil </span><span class="cov0" title="0">{
+        return false, errors.New("One of the EC_POINTs was null")
+    }</span>
+    <span class="cov8" title="1">if m.Curve.Group == nil </span><span class="cov0" title="0">{
+        return false, errors.New("The curve group is null")
+    }</span>
+
+    <span class="cov8" title="1">ctx := C.BN_CTX_new()
+    defer FreeBNCTX(ctx)
+
+    result := C.EC_POINT_cmp(m.Curve.Group, m.ECPoint, other.ECPoint, ctx)
+    if result == -1 </span><span class="cov0" title="0">{
+        return false, errors.New("EC_POINT_cmp failure")
+    }</span>
+    <span class="cov8" title="1">return result == 0, nil</span>
+}
+
+func (m *Point) Mul(other ModBigNum) error <span class="cov8" title="1">{
+    /*
+    Performs a EC_POINT_mul on an EC_POINT and a BIGNUM.
+    */
+    if !m.Curve.Equals(other.Curve) </span><span class="cov0" title="0">{
+        return errors.New("The points do not share the same curve.")
+    }</span>
+
+    <span class="cov8" title="1">ctx := C.BN_CTX_new()
+    defer FreeBNCTX(ctx)
+
+    result := C.EC_POINT_mul(m.Curve.Group, m.ECPoint, (*C.BIGNUM)(C.NULL),
+        m.ECPoint, other.Bignum, ctx)
+    if result != 1 </span><span class="cov0" title="0">{
+        return errors.New("EC_POINT_mul failure")
+    }</span>
+
+    <span class="cov8" title="1">return nil</span>
+}
+
+func (m *Point) Add(other Point) error <span class="cov8" title="1">{
+    // Performs an EC_POINT_add on two EC_POINTS.
+
+    ctx := C.BN_CTX_new()
+    defer FreeBNCTX(ctx)
+
+    result := C.EC_POINT_add(m.Curve.Group, m.ECPoint, m.ECPoint, other.ECPoint, ctx)
+    if result != 1 </span><span class="cov0" title="0">{
+        return errors.New("EC_POINT_add failure")
+    }</span>
+
+    <span class="cov8" title="1">return nil</span>
+}
+
+func (m *Point) Sub(other Point) error <span class="cov8" title="1">{
+    // Performs an subtraction on two EC_POINTS by adding by the inverse.
+    tmp, err := other.Copy()
+    if err != nil </span><span class="cov0" title="0">{
+        return err
+    }</span>
+    <span class="cov8" title="1">defer tmp.Free()
+
+    err = tmp.Invert()
+    if err != nil </span><span class="cov0" title="0">{
+        return err
+    }</span>
+
+    <span class="cov8" title="1">err = m.Add(tmp)
+    if err != nil </span><span class="cov0" title="0">{
+        return err
+    }</span>
+
+    <span class="cov8" title="1">return nil</span>
+}
+
+func (m *Point) Invert() error <span class="cov8" title="1">{
+    ctx := C.BN_CTX_new()
+    defer FreeBNCTX(ctx)
+
+    result := C.EC_POINT_invert(m.Curve.Group, m.ECPoint, ctx)
+    if result != 1 </span><span class="cov0" title="0">{
+        return errors.New("EC_POINT_invert failure")
+    }</span>
+
+    <span class="cov8" title="1">return nil</span>
+}
+
+func UnsafeHashToPoint(data []byte, curve Curve, label string) (Point, error) <span class="cov8" title="1">{
+    // Hashes arbitrary data into a valid EC point of the specified curve,
+    // using the try-and-increment method.
+    // It admits an optional label as an additional input to the hash function.
+    // It uses BLAKE2b (with a digest size of 64 bytes) as the internal hash function.
+
+    // WARNING: Do not use when the input data is secret, as this implementation is not
+    // in constant time, and hence, it is not safe with respect to timing attacks.
+    // TODO: Check how to uniformly generate ycoords. Currently, it only outputs points
+    // where ycoord is even (i.e., starting with 0x02 in compressed notation)
+
+    // We use a 32-bit counter as additional input
+    max := uint32(math.Exp2(32) - 1)
+    bs := make([]byte, 4)
+
+    for i := uint32(1); i &lt; max; i++ </span><span class="cov8" title="1">{
+        binary.BigEndian.PutUint32(bs, i)
+
+        bytes := append([]byte(label), bs...)
+        bytes = append(bytes, data...)
+
+        hash := blake2b.Sum512(bytes)
+
+        var compress []byte = make([]byte, 1)
+        compress[0] = byte(2)
+
+        compressed02 := append(compress, hash[:32]...)
+
+        point, err := Bytes2Point(compressed02, curve)
+
+        if err != nil </span><span class="cov0" title="0">{
+            // TODO: Catching Exceptions
+            // We want to catch specific InternalExceptions:
+            // - Point not in the curve (code 107)
+            // - Invalid compressed point (code 110)
+            // https://github.com/openssl/openssl/blob/master/include/openssl/ecerr.h#L228
+            // return Point{}, err
+            continue</span>
+        } else<span class="cov8" title="1"> {
+            return point, nil
+        }</span>
+    }
+
+    // Only happens with probability 2^(-32)
+    <span class="cov0" title="0">return Point{}, errors.New("Could not hash input into the curve")</span>
+}
+
+func (m Point) Copy() (Point, error) <span class="cov8" title="1">{
+    // Deep copy of a Point EXCLUDING the curve.
+    point := C.EC_POINT_dup(m.ECPoint, m.Curve.Group)
+    if unsafe.Pointer(point) == C.NULL </span><span class="cov0" title="0">{
+        return Point{}, errors.New("EC_POINT_dup failure")
+    }</span>
+
+    <span class="cov8" title="1">return Point{ECPoint: point, Curve: m.Curve}, nil</span>
+}
+
+func (m Point) Free() <span class="cov8" title="1">{
+    FreeECPoint(m.ECPoint)
+    // Do not free the curve.
+    // m.Curve.Free()
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
