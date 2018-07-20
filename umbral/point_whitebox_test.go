@@ -311,9 +311,14 @@ func TestUnsafeHashToPoint(t *testing.T) {
     }
     defer curve.Free()
 
+    params, err := GetNewUmbralParameters(curve)
+    if err != nil {
+        t.Error(err)
+    }
+
     data := []byte{243, 23, 94, 82}
 
-    point, err := UnsafeHashToPoint(data, curve, "bigboi")
+    point, err := UnsafeHashToPoint(data, params, []byte("bigboi"))
     if err != nil {
         t.Error(err)
     }
