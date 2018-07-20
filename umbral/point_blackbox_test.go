@@ -246,3 +246,76 @@ func TestPointOperations(t *testing.T) {
         tmp2.Free()
     }
 }
+
+type UnsafeOps struct {
+    Name string `json:"name"`
+    Params string `json:"params"`
+    Vectors []UVector `json:"vectors"`
+}
+
+type UVector struct{
+    Data string `json:"data"`
+    Label string `json:"label"`
+    Point string `json:"point"`
+}
+
+func TestUnsafeHashToPoint(t *testing.T) {
+    data, err := ioutil.ReadFile("../vectors/vectors_unsafe_hash_to_point.json")
+    if err != nil {
+        t.Error(err)
+    }
+
+    var pops UnsafeOps
+    err = json.Unmarshal(data, &pops)
+    if err != nil {
+        t.Error(err)
+    }
+
+    curve, err := umbral.GetNewCurve(umbral.SECP256K1)
+    if err != nil {
+        t.Error(err)
+    }
+    defer curve.Free()
+
+    params, err := umbral.GetNewUmbralParameters(curve)
+    if err != nil {
+        t.Error(err)
+    }
+
+    for _, k := range pops.Vectors {
+        data, err := hex.DecodeString(k.Data)
+        if err != nil {
+            t.Error(err)
+        }
+
+        label, err := hex.DecodeString(k.Label)
+        if err != nil {
+            t.Error(err)
+        }
+
+        point1, err := umbral.UnsafeHashToPoint(data, params, label)
+        if err != nil {
+            t.Error(err)
+        }
+
+        tmp1, err := hex.DecodeString(k.Point)
+        if err != nil {
+            t.Error(err)
+        }
+
+        point2, err := umbral.Bytes2Point(tmp1, curve)
+        if err != nil {
+            t.Error(err)
+        }
+        defer point2.Free()
+
+        equ, err := point1.Equals(point2)
+        if err != nil {
+            t.Error(err)
+        }
+
+        if !equ {
+            t.Error("After hashing, the points were not equal")
+        }
+    }
+}
