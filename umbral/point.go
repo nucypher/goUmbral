@@ -88,9 +88,7 @@ func Affine2Point(affineX, affineY *big.Int, curve Curve) (Point, error) {
     */
     x := BigIntToBN(affineX)
     y := BigIntToBN(affineY)
-    if !BNIsWithinOrder(x, curve) || !BNIsWithinOrder(y, curve) {
-        return Point{}, errors.New("x or y are not within the curve")
-    }
+
     point, err := GetECPointFromAffine(x, y, curve)
     if err != nil {
         return Point{}, err
