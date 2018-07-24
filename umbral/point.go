@@ -46,7 +46,7 @@ func PointLength(curve Curve, isCompressed bool) uint {
         return 0
     }
 
-    coordSize := curve.Size()
+    coordSize := curve.FieldOrderSize()
 
     if isCompressed {
         return 1 + coordSize
