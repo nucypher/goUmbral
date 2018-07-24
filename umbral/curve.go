@@ -44,7 +44,7 @@ func (m Curve) Equals(other Curve) bool {
     return m.NID == other.NID
 }
 
-func (m Curve) Size() uint {
+func (m Curve) FieldOrderSize() uint {
     bits := GetECGroupDegree(m.Group)
     return (bits + 7) / 8
 }
