@@ -37,6 +37,9 @@ func GenRandModBN(curve Curve) (ModBigNum, error) {
     */
 
     // newRandBN needs to be from 1 inclusive to curve exclusive
+    if curve.Order == nil {
+        return ModBigNum{}, errors.New("The order of the curve is nil. Construct a valid curve first.")
+    }
     newRandBN := RandRangeBN(curve.Order)
 
     if !BNIsWithinOrder(newRandBN, curve) {
@@ -151,6 +154,7 @@ func (m *ModBigNum) Div(other ModBigNum) error {
     if err != nil {
         return err
     }
+    defer tmpBN.Free()
 
     err = tmpBN.Invert()
     if err != nil {
@@ -235,23 +239,16 @@ func (m *ModBigNum) Mod(other ModBigNum) error {
 }
 
 func (m ModBigNum) Copy() (ModBigNum, error) {
-    // Deep copy of a ModBigNum.
+    // Deep copy of a ModBigNum EXCLUDING the curve.
     bn := C.BN_dup(m.Bignum)
     if unsafe.Pointer(bn) == C.NULL {
         return ModBigNum{}, errors.New("BN_dup failure")
     }
-    group := C.EC_GROUP_dup(m.Curve.Group)
-    if unsafe.Pointer(group) == C.NULL {
-        return ModBigNum{}, errors.New("EC_GROUP_dup failure")
-    }
-    order := C.BN_dup(m.Curve.Order)
-    if unsafe.Pointer(order) == C.NULL {
-        return ModBigNum{}, errors.New("BN_dup failure")
-    }
-    generator := C.EC_POINT_dup(m.Curve.Generator, group)
-    if unsafe.Pointer(generator) == C.NULL {
-        return ModBigNum{}, errors.New("EC_POINT_dup failure")
-    }
-    curve := Curve{m.Curve.NID, group, order, generator}
-    return ModBigNum{Bignum: bn, Curve: curve}, nil
+    return ModBigNum{Bignum: bn, Curve: m.Curve}, nil
+}
+
+func (m *ModBigNum) Free() {
+    FreeBigNum(m.Bignum)
+    // Do not free the curve.
+    // m.Curve.Free()
 }

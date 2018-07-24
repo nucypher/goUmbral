@@ -6,6 +6,7 @@ import (
     "unsafe"
     "math/big"
     "log"
+    "errors"
 )
 
 type BigNum *C.BIGNUM
@@ -48,7 +49,8 @@ func GetECOrderByGroup(group ECGroup) BigNum {
 }
 
 func GetECGeneratorByGroup(group ECGroup) ECPoint {
-    // generator must be freed later by the calling function.
+    // generator should not be freed directly by the calling function.
+    // Free the EC_GROUP instead.
     var generator ECPoint = C.EC_GROUP_get0_generator(group)
 
     if unsafe.Pointer(generator) == C.NULL {
@@ -92,19 +94,22 @@ func BNIsWithinOrder(checkBN BigNum, curve Curve) bool {
     return checkSign == 1 && rangeCheck == -1
 }
 
-func GetNewECPoint(curve Curve) ECPoint {
+func GetNewECPoint(curve Curve) (ECPoint, error) {
     // newPoint must be freed later by the calling function.
     newPoint := C.EC_POINT_new(curve.Group)
     if unsafe.Pointer(newPoint) == C.NULL {
         // Failure
-        log.Fatal("New EC Point failure")
+        return newPoint, errors.New("New EC Point failure")
     }
-    return newPoint
+    return newPoint, nil
 }
 
-func GetECPointFromAffine(affineX, affineY BigNum, curve Curve) ECPoint {
+func GetECPointFromAffine(affineX, affineY BigNum, curve Curve) (ECPoint, error) {
     // newPoint must be freed later by the calling function.
-    newPoint := GetNewECPoint(curve)
+    newPoint, err := GetNewECPoint(curve)
+    if err != nil {
+        return newPoint, err
+    }
 
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)
@@ -113,12 +118,12 @@ func GetECPointFromAffine(affineX, affineY BigNum, curve Curve) ECPoint {
             curve.Group, newPoint, affineX, affineY, ctx)
     if result != 1 {
         // Failure
-        log.Fatal("EC Point lookup failure")
+        return newPoint, errors.New("EC Point lookup failure")
     }
-    return newPoint
+    return newPoint, nil
 }
 
-func GetAffineCoordsFromECPoint(point ECPoint, curve Curve) (BigNum, BigNum) {
+func GetAffineCoordsFromECPoint(point ECPoint, curve Curve) (BigNum, BigNum, error) {
     // affineX and affineY must be freed later by the calling function.
     affineX := GetBigNum()
     affineY := GetBigNum()
@@ -130,9 +135,9 @@ func GetAffineCoordsFromECPoint(point ECPoint, curve Curve) (BigNum, BigNum) {
             curve.Group, point, affineX, affineY, ctx)
     if result != 1 {
         // Failure
-        log.Fatal("Affine lookup failure")
+        return affineX, affineY, errors.New("Affine lookup failure")
     }
-    return affineX, affineY
+    return affineX, affineY, nil
 }
 
 func TmpBNMontCTX(modulus BigNum) BNMontCtx {
@@ -160,6 +165,19 @@ func IntToBN(sInt int) BigNum {
 func BigIntToBN(bInt *big.Int) BigNum {
     goIntAsBytes := bInt.Bytes()
     return BytesToBN(goIntAsBytes)
+}
+
+func BNToBigInt(bn BigNum) *big.Int {
+    bytes := BNToBytes(bn)
+    bInt := big.NewInt(0)
+    bInt.SetBytes(bytes)
+    return bInt
+}
+
+func BytesToBigInt(bytes []byte) *big.Int {
+    bInt := big.NewInt(0)
+    bInt.SetBytes(bytes)
+    return bInt
 }
 
 func BytesToBN(bytes []byte) BigNum {

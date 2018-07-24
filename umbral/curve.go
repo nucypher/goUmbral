@@ -4,6 +4,7 @@ package umbral
 import "C"
 import (
     "errors"
+    "unsafe"
 )
 
 // Supported curves
@@ -41,4 +42,16 @@ func GetNewCurve(nid C.int) (Curve, error) {
 
 func (m Curve) Equals(other Curve) bool {
     return m.NID == other.NID
+}
+
+func (m Curve) FieldOrderSize() uint {
+    bits := GetECGroupDegree(m.Group)
+    return (bits + 7) / 8
+}
+
+func (m *Curve) Free() {
+    FreeBigNum(m.Order)
+    FreeECGroup(m.Group)
+    // The generator is already freed by freeing the EC_GROUP.
+    // FreeECPoint(m.Generator)
 }
