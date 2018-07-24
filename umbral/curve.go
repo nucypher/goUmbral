@@ -49,23 +49,6 @@ func (m Curve) FieldOrderSize() uint {
     return (bits + 7) / 8
 }
 
-func (m Curve) Copy() (Curve, error) {
-    // Return a deep copy of a Curve.
-    group := C.EC_GROUP_dup(m.Group)
-    if unsafe.Pointer(group) == C.NULL {
-        return Curve{}, errors.New("EC_GROUP_dup failure")
-    }
-    order := C.BN_dup(m.Order)
-    if unsafe.Pointer(order) == C.NULL {
-        return Curve{}, errors.New("BN_dup failure")
-    }
-    generator := C.EC_POINT_dup(m.Generator, group)
-    if unsafe.Pointer(generator) == C.NULL {
-        return Curve{}, errors.New("EC_POINT_dup failure")
-    }
-    return Curve{m.NID, group, order, generator}, nil
-}
-
 func (m *Curve) Free() {
     FreeBigNum(m.Order)
     FreeECGroup(m.Group)
