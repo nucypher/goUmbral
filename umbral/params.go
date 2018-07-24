@@ -13,7 +13,7 @@ type UmbralParameters struct {
 func GetNewUmbralParameters(curve Curve) (UmbralParameters, error) {
     var params UmbralParameters
     params.Curve = curve
-    params.Size = curve.Size()
+    params.Size = curve.FieldOrderSize()
 
     params.G = GetGeneratorFromCurve(curve)
     gBytes, err := params.G.ToBytes(true)

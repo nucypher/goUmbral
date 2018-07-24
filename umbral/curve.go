@@ -20,7 +20,6 @@ package umbral
 import "C"
 import (
     "errors"
-    "unsafe"
 )
 
 // Supported curves
