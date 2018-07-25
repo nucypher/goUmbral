@@ -20,7 +20,7 @@ Install OpenSSL system wide or link to your local installation in the build.go f
 The NuCypher team uses Go for managing goUmbral's dependencies.
 The recommended installation procedure is as follows:
 
-`go get https://github.com/nucypher/goUmbral/`
+`go get -u github.com/nucypher/goUmbral/umbral`
 
 Then just include the package at the top of your file:
 
