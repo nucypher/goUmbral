@@ -124,12 +124,17 @@ func TestHash2BN(t *testing.T) {
         }
         defer curve.Free()
 
-        // Convert to BN with Hash2BN.
-        bn, err := Hash2ModBN(bs, curve)
+        params, err := GetNewUmbralParameters(curve)
         if err != nil {
             t.Error(err)
         }
-        defer bn.Free()
+
+        // Convert to BN with Hash2BN.
+        modbn, err := Hash2ModBN(bs, params)
+        if err != nil {
+            t.Error(err)
+        }
+        defer modbn.Free()
 
         // Hash the number with blake2b and convert to Go big.Int.
         hash := blake2b.Sum512(bs)
@@ -153,7 +158,7 @@ func TestHash2BN(t *testing.T) {
         defer FreeBigNum(newBN)
 
         // newBN and bn should be equal
-        result := CompareBN(newBN, bn.Bignum)
+        result := CompareBN(newBN, modbn.Bignum)
 
         if result != 0 {
             t.Error("The two hashed and modded bn's were not the same:", result)
@@ -169,7 +174,12 @@ func TestHash2BN(t *testing.T) {
         }
         defer curve.Free()
 
-        modbn, err := Hash2ModBN(bs, curve)
+        params, err := GetNewUmbralParameters(curve)
+        if err != nil {
+            t.Error(err)
+        }
+
+        modbn, err := Hash2ModBN(bs, params)
         if err != nil {
             t.Error(err)
         }
@@ -186,9 +196,15 @@ func TestHash2BN(t *testing.T) {
         if err != nil {
             t.Error(err)
         }
-        curve.Free()
+        defer curve.Free()
 
-        modbn, err := Hash2ModBN(bs, curve)
+        params, err := GetNewUmbralParameters(curve)
+        if err != nil {
+            t.Error(err)
+        }
+
+        // Convert to BN with Hash2BN.
+        modbn, err := Hash2ModBN(bs, params)
         if err != nil {
             t.Error(err)
         }

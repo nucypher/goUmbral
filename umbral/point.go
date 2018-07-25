@@ -204,10 +204,10 @@ func (m Point) ToBytes(isCompressed bool) ([]byte, error) {
     }
 }
 
-func GetPointFromGenerator(curve Curve) (ECPoint, Curve) {
+func GetGeneratorFromCurve(curve Curve) Point {
     // Consider making a copy of this point
     // so there are not any double frees.
-    return curve.Generator, curve
+    return Point{curve.Generator, curve}
 }
 
 func (m Point) Equals(other Point) (bool, error) {
@@ -295,7 +295,7 @@ func (m *Point) Invert() error {
     return nil
 }
 
-func UnsafeHashToPoint(data []byte, curve Curve, label string) (Point, error) {
+func UnsafeHashToPoint(data []byte, params UmbralParameters, label []byte) (Point, error) {
     // Hashes arbitrary data into a valid EC point of the specified curve,
     // using the try-and-increment method.
     // It admits an optional label as an additional input to the hash function.
@@ -306,24 +306,41 @@ func UnsafeHashToPoint(data []byte, curve Curve, label string) (Point, error) {
     // TODO: Check how to uniformly generate ycoords. Currently, it only outputs points
     // where ycoord is even (i.e., starting with 0x02 in compressed notation)
 
-    // We use a 32-bit counter as additional input
     max := uint32(math.Exp2(32) - 1)
+
+    lenData := make([]byte, 4)
+    lenLabel := make([]byte, 4)
+
+    binary.BigEndian.PutUint32(lenLabel, uint32(len(label)))
+    binary.BigEndian.PutUint32(lenData, uint32(len(data)))
+
+    labelData := append(lenLabel, label...)
+    labelData = append(labelData, lenData...)
+    labelData = append(labelData, data...)
+
     bs := make([]byte, 4)
 
-    for i := uint32(1); i < max; i++ {
+    // We use an internal 32-bit counter as additional input
+    for i := uint32(0); i < max; i++ {
         binary.BigEndian.PutUint32(bs, i)
 
-        bytes := append([]byte(label), bs...)
-        bytes = append(bytes, data...)
+        dataCopy := make([]byte, len(labelData))
+        copy(dataCopy, labelData)
 
-        hash := blake2b.Sum512(bytes)
+        dataCopy = append(dataCopy, bs...)
 
-        var compress []byte = make([]byte, 1)
-        compress[0] = byte(2)
+        hash := blake2b.Sum512(dataCopy)
 
-        compressed02 := append(compress, hash[:32]...)
+        var sign []byte = make([]byte, 1)
+        if hash[0] & 1 == 0 {
+            sign[0] = byte(2)
+        } else {
+            sign[0] = byte(3)
+        }
 
-        point, err := Bytes2Point(compressed02, curve)
+        compressedPoint := append(sign, hash[1:1 + params.Size]...)
+
+        point, err := Bytes2Point(compressedPoint, params.Curve)
 
         if err != nil {
             // TODO: Catching Exceptions

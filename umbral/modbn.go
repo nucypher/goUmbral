@@ -74,7 +74,7 @@ func Int2ModBN(num int, curve Curve) (ModBigNum, error) {
     return ModBigNum{Bignum: newBN, Curve: curve}, nil
 }
 
-func Hash2ModBN(bytes []byte, curve Curve) (ModBigNum, error) {
+func Hash2ModBN(bytes []byte, params UmbralParameters) (ModBigNum, error) {
     // Returns a ModBigNum based on provided data hashed by blake2b.
     hash := blake2b.Sum512(bytes)
     hashBN := BytesToBN(hash[:])
@@ -82,7 +82,7 @@ func Hash2ModBN(bytes []byte, curve Curve) (ModBigNum, error) {
     oneBN := IntToBN(1)
     defer FreeBigNum(oneBN)
 
-    orderMinusOne := SubBN(curve.Order, oneBN)
+    orderMinusOne := SubBN(params.Curve.Order, oneBN)
     defer FreeBigNum(orderMinusOne)
 
     moddedResult := ModBN(hashBN, orderMinusOne)
@@ -90,7 +90,7 @@ func Hash2ModBN(bytes []byte, curve Curve) (ModBigNum, error) {
 
     bignum := AddBN(moddedResult, oneBN)
 
-    return ModBigNum{Bignum: bignum, Curve: curve}, nil
+    return ModBigNum{Bignum: bignum, Curve: params.Curve}, nil
 }
 
 func Bytes2ModBN(data []byte, curve Curve) (ModBigNum, error) {
@@ -234,6 +234,23 @@ func (m *ModBigNum) Invert() error {
     FreeBigNum(m.Bignum)
 
     m.Bignum = inverse
+    return nil
+}
+
+func (m *ModBigNum) Neg() error {
+    // Computes the modular opposite (i.e., additive inverse) of a BIGNUM
+    zero := IntToBN(0)
+    defer FreeBigNum(zero)
+
+    ctx := C.BN_CTX_new()
+    defer FreeBNCTX(ctx)
+
+    result := C.BN_mod_sub(m.Bignum, zero, m.Bignum, m.Curve.Order, ctx)
+
+    if result != 1 {
+        return errors.New("BN_mod_sub failure")
+    }
+
     return nil
 }
 
