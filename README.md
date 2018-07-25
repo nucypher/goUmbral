@@ -1,4 +1,4 @@
-# goUmbral
+# goUmbral [![CircleCI](https://circleci.com/gh/nucypher/goUmbral/tree/master.svg?style=svg)](https://circleci.com/gh/nucypher/goUmbral/tree/master)
 
 goUmbral is a Go implementation of David Nuñez's threshold proxy re-encryption scheme: [Umbral][1].
 Implemented with [OpenSSL][2], goUmbral is an open-source cryptography library based on the referential
