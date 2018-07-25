@@ -32,9 +32,8 @@ Academic Whitepaper
 The Umbral scheme academic whitepaper and cryptographic specifications
 are available on [GitHub][1].
 
-  "Umbral: A Threshold Proxy Re-Encryption Scheme"
-  *by David Nuñez*
-  https://github.com/nucypher/umbral-doc/blob/master/umbral-doc.pdf
+> "Umbral: A Threshold Proxy Re-Encryption Scheme"
+> *by David Nuñez* https://github.com/nucypher/umbral-doc/blob/master/umbral-doc.pdf
 
 Support & Contribute
 --------------------
