@@ -1,0 +1,24 @@
+version: 2
+jobs:
+  build:
+    working_directory: /go/src/github.com/nucypher/goUmbral
+    docker:
+      - image: circleci/golang:1.10
+    steps:
+      - checkout
+      - run:
+          name: Install libssl-dev
+          command: sudo apt-get install libssl-dev
+      - run: 
+          name: Install Blake2b dependency
+          command: go get golang.org/x/crypto/blake2b
+      - run:
+          name: Install JUnit Report dependency
+          command: go get -u github.com/jstemmer/go-junit-report
+      - run:
+          name: Run tests
+          command: go test -v github.com/nucypher/goUmbral/umbral/ --coverprofile=coverage.out 2>&1 | go-junit-report > test-report.xml
+      - store_test_results:
+          path: test-report.xml
+      - store_artifacts:
+          path: coverage.out
