@@ -38,6 +38,18 @@ type Vector struct{
     Result string `json:"result"`
 }
 
+type UnsafeOps struct {
+    Name string `json:"name"`
+    Params string `json:"params"`
+    Vectors []UVector `json:"vectors"`
+}
+
+type UVector struct{
+    Data string `json:"data"`
+    Label string `json:"label"`
+    Point string `json:"point"`
+}
+
 func TestPointOperations(t *testing.T) {
     data, err := ioutil.ReadFile("../vectors/vectors_point_operations.json")
     if err != nil {
@@ -245,18 +257,6 @@ func TestPointOperations(t *testing.T) {
         tmp1.Free()
         tmp2.Free()
     }
-}
-
-type UnsafeOps struct {
-    Name string `json:"name"`
-    Params string `json:"params"`
-    Vectors []UVector `json:"vectors"`
-}
-
-type UVector struct{
-    Data string `json:"data"`
-    Label string `json:"label"`
-    Point string `json:"point"`
 }
 
 func TestUnsafeHashToPoint(t *testing.T) {

@@ -16,6 +16,22 @@ type ModBNOps struct {
     Vectors []Vector `json:"vectors"`
 }
 
+type HashOps struct {
+    Name string `json:"name"`
+    Params string `json:"params"`
+    Vectors []HVector `json:"vectors"`
+}
+
+type HVector struct{
+    Input []Input `json:"input"`
+    Output string `json:"output"`
+}
+
+type Input struct {
+    Class string `json:"class"`
+    Bytes string `json:"bytes"`
+}
+
 func TestModBNOperations(t *testing.T) {
     data, err := ioutil.ReadFile("../vectors/vectors_curvebn_operations.json")
     if err != nil {
@@ -214,22 +230,6 @@ func TestModBNOperations(t *testing.T) {
         tmp1.Free()
         tmp2.Free()
     }
-}
-
-type HashOps struct {
-    Name string `json:"name"`
-    Params string `json:"params"`
-    Vectors []HVector `json:"vectors"`
-}
-
-type HVector struct{
-    Input []Input `json:"input"`
-    Output string `json:"output"`
-}
-
-type Input struct {
-    Class string `json:"class"`
-    Bytes string `json:"bytes"`
 }
 
 func TestHash2ModBN(t *testing.T) {
