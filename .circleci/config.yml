@@ -1,0 +1,16 @@
+version: 2
+jobs:
+  build:
+    working_directory: /go/src/github.com/nucypher/goUmbral
+    docker:
+      - image: circleci/golang:1.10
+    steps:
+      - checkout
+      - run: 
+          name: Install Blake2b dependency
+          command: go get golang.org/x/crypto/blake2b
+      - run:
+          name: Run tests
+          command: go test -v --coverprofile=coverage.out
+      - store_artifacts:
+          path: ./cover
