@@ -378,13 +378,19 @@ func TestPow(t *testing.T) {
         }
         defer modbn2.Free()
 
+        power, err := GetNewModBN(nil, curve)
+        if err != nil {
+            t.Error(err)
+        }
+        defer power.Free()
+
         // 2^5 % curve.Order
-        err = modbn1.Pow(modbn2)
+        err = power.Pow(modbn1, modbn2)
         if err != nil {
             t.Error(err)
         }
 
-        t.Log(BNToDecStr(modbn1.Bignum))
+        t.Log(BNToDecStr(power.Bignum))
 
         goBN1 := big.NewInt(2)
         goBN2 := big.NewInt(5)
@@ -400,8 +406,8 @@ func TestPow(t *testing.T) {
         }
         defer modbn3.Free()
 
-        if !modbn1.Equals(modbn3) {
-            t.Error("modbn1 doesn't equal modbn3 which was converted from a Go big.Int")
+        if !power.Equals(modbn3) {
+            t.Error("power doesn't equal modbn3 which was converted from a Go big.Int")
         }
     })
     t.Run("big powers", func(t *testing.T) {
@@ -423,13 +429,19 @@ func TestPow(t *testing.T) {
         }
         defer modbn2.Free()
 
-        // 2^5 % curve.Order
-        err = modbn1.Pow(modbn2)
+        power, err := GetNewModBN(nil, curve)
+        if err != nil {
+            t.Error(err)
+        }
+        defer power.Free()
+
+        // 2^300 % curve.Order
+        err = power.Pow(modbn1, modbn2)
         if err != nil {
             t.Error(err)
         }
 
-        t.Log(BNToDecStr(modbn1.Bignum))
+        t.Log(BNToDecStr(power.Bignum))
 
         goBN1 := big.NewInt(2)
         goBN2 := big.NewInt(300)
@@ -445,8 +457,8 @@ func TestPow(t *testing.T) {
         }
         defer modbn3.Free()
 
-        if !modbn1.Equals(modbn3) {
-            t.Error("modbn1 doesn't equal modbn3 which was converted from a Go big.Int")
+        if !power.Equals(modbn3) {
+            t.Error("power doesn't equal modbn3 which was converted from a Go big.Int")
         }
     })
 }

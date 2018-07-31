@@ -26,7 +26,7 @@ import (
 
 /*
 Represents an OpenSSL BIGNUM modulo the order of a curve. Some of these
-operations will only work with prime numbers
+operations will only work with prime numbers TODO: which ones?
 */
 
 type ModBigNum struct {
@@ -123,7 +123,7 @@ func (m ModBigNum) Compare(other ModBigNum) int {
     return CompareBN(m.Bignum, other.Bignum)
 }
 
-func (m *ModBigNum) Pow(other ModBigNum) error {
+func (m *ModBigNum) Pow(base, exp ModBigNum) error {
     /*
     Performs a BN_mod_exp on two BIGNUMS.
     WARNING: Only in constant time if BN_FLG_CONSTTIME is set on the BN.
@@ -135,8 +135,9 @@ func (m *ModBigNum) Pow(other ModBigNum) error {
 
     bnMontCtx := TmpBNMontCTX(m.Curve.Order)
     defer FreeBNMontCTX(bnMontCtx)
-    result := C.BN_mod_exp_mont_consttime(power,
-        m.Bignum, other.Bignum, m.Curve.Order, bnCtx, bnMontCtx)
+
+    result := C.BN_mod_exp_mont_consttime(m.Bignum,
+        base.Bignum, exp.Bignum, m.Curve.Order, bnCtx, bnMontCtx)
 
     if result != 1 {
         return errors.New("BN_mod_exp failure")
