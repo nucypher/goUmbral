@@ -263,20 +263,20 @@ func (m *Point) Add(p1, p2 Point) error {
     return nil
 }
 
-func (m *Point) Sub(other Point) error {
-    // Performs an subtraction on two EC_POINTS by adding by the inverse.
-    tmp, err := other.Copy()
+func (m *Point) Sub(p1, p2 Point) error {
+    // Performs a subtraction on two EC_POINTS by adding by the inverse.
+    inv, err := p2.Copy()
     if err != nil {
         return err
     }
-    defer tmp.Free()
+    defer inv.Free()
 
-    err = tmp.Invert()
+    err = inv.Invert()
     if err != nil {
         return err
     }
 
-    err = m.Add(tmp)
+    err = m.Add(p1, inv)
     if err != nil {
         return err
     }

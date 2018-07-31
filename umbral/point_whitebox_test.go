@@ -276,6 +276,12 @@ func TestPointSub(t *testing.T) {
     }
     defer curve.Free()
 
+    sum, err := GetNewPoint(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer sum.Free()
+
     point1, err := GenRandPoint(curve)
     if err != nil {
         t.Error(err)
@@ -288,7 +294,7 @@ func TestPointSub(t *testing.T) {
     }
     defer point2.Free()
 
-    err = point1.Sub(point2)
+    err = sum.Sub(point1, point2)
     if err != nil {
         t.Error(err)
     }
