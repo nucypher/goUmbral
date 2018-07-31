@@ -188,13 +188,13 @@ func (m *ModBigNum) Div(bn1, bn2 ModBigNum) error {
     return nil
 }
 
-func (m *ModBigNum) Add(other ModBigNum) error {
+func (m *ModBigNum) Add(bn1, bn2 ModBigNum) error {
     sum := GetBigNum()
 
     bnCtx := C.BN_CTX_new()
     defer FreeBNCTX(bnCtx)
 
-    result := C.BN_mod_add(sum, m.Bignum, other.Bignum, m.Curve.Order, bnCtx)
+    result := C.BN_mod_add(sum, bn1.Bignum, bn2.Bignum, m.Curve.Order, bnCtx)
     if result != 1 {
         return errors.New("BN_mod_add failure")
     }

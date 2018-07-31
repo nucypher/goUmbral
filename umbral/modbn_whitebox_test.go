@@ -555,7 +555,13 @@ func TestAdd(t *testing.T) {
     }
     defer modbn2.Free()
 
-    err = modbn1.Add(modbn2)
+    sum, err := GetNewModBN(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer sum.Free()
+
+    err = sum.Add(modbn1, modbn2)
     if err != nil {
         t.Error(err)
     }
@@ -566,8 +572,8 @@ func TestAdd(t *testing.T) {
     }
     defer modbn3.Free()
 
-    if !modbn1.Equals(modbn3) {
-        t.Error("modbn1 doesn't equal modbn3: 768")
+    if !sum.Equals(modbn3) {
+        t.Error("sum doesn't equal modbn3: 768")
     }
 }
 
