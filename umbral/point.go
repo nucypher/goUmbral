@@ -228,11 +228,12 @@ func (m Point) Equals(other Point) (bool, error) {
     return result == 0, nil
 }
 
-func (m *Point) Mul(other ModBigNum) error {
+func (m *Point) Mul(scalar ModBigNum, point Point) error {
     /*
     Performs a EC_POINT_mul on an EC_POINT and a BIGNUM.
     */
-    if !m.Curve.Equals(other.Curve) {
+    // TODO: How do we check all three?
+    if !m.Curve.Equals(scalar.Curve) {
         return errors.New("The points do not share the same curve.")
     }
 
@@ -240,7 +241,7 @@ func (m *Point) Mul(other ModBigNum) error {
     defer FreeBNCTX(ctx)
 
     result := C.EC_POINT_mul(m.Curve.Group, m.ECPoint, (*C.BIGNUM)(C.NULL),
-        m.ECPoint, other.Bignum, ctx)
+        point.ECPoint, scalar.Bignum, ctx)
     if result != 1 {
         return errors.New("EC_POINT_mul failure")
     }

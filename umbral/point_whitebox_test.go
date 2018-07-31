@@ -217,19 +217,21 @@ func TestPointMul(t *testing.T) {
     }
     defer curve.Free()
 
-    point, err := GenRandPoint(curve)
+    G := GetGeneratorFromCurve(curve)
+    defer G.Free()
+
+    r, err := GenRandModBN(curve)
     if err != nil {
         t.Error(err)
     }
-    defer point.Free()
+    defer r.Free()
 
-    modbn, err := GenRandModBN(curve)
+    rG, err := GetNewPoint(nil, curve)
     if err != nil {
         t.Error(err)
     }
-    defer modbn.Free()
 
-    err = point.Mul(modbn)
+    err = rG.Mul(r, G)
     if err != nil {
         t.Error(err)
     }
