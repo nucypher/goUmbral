@@ -228,11 +228,12 @@ func (m Point) Equals(other Point) (bool, error) {
     return result == 0, nil
 }
 
-func (m *Point) Mul(other ModBigNum) error {
+func (m *Point) Mul(scalar ModBigNum, point Point) error {
     /*
     Performs a EC_POINT_mul on an EC_POINT and a BIGNUM.
     */
-    if !m.Curve.Equals(other.Curve) {
+    // TODO: How do we check all three?
+    if !m.Curve.Equals(scalar.Curve) {
         return errors.New("The points do not share the same curve.")
     }
 
@@ -240,7 +241,7 @@ func (m *Point) Mul(other ModBigNum) error {
     defer FreeBNCTX(ctx)
 
     result := C.EC_POINT_mul(m.Curve.Group, m.ECPoint, (*C.BIGNUM)(C.NULL),
-        m.ECPoint, other.Bignum, ctx)
+        point.ECPoint, scalar.Bignum, ctx)
     if result != 1 {
         return errors.New("EC_POINT_mul failure")
     }
@@ -248,13 +249,13 @@ func (m *Point) Mul(other ModBigNum) error {
     return nil
 }
 
-func (m *Point) Add(other Point) error {
+func (m *Point) Add(p1, p2 Point) error {
     // Performs an EC_POINT_add on two EC_POINTS.
 
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)
 
-    result := C.EC_POINT_add(m.Curve.Group, m.ECPoint, m.ECPoint, other.ECPoint, ctx)
+    result := C.EC_POINT_add(m.Curve.Group, m.ECPoint, p1.ECPoint, p2.ECPoint, ctx)
     if result != 1 {
         return errors.New("EC_POINT_add failure")
     }
@@ -262,20 +263,20 @@ func (m *Point) Add(other Point) error {
     return nil
 }
 
-func (m *Point) Sub(other Point) error {
-    // Performs an subtraction on two EC_POINTS by adding by the inverse.
-    tmp, err := other.Copy()
+func (m *Point) Sub(p1, p2 Point) error {
+    // Performs a subtraction on two EC_POINTS by adding by the inverse.
+    inv, err := GetNewPoint(nil, m.Curve)
     if err != nil {
         return err
     }
-    defer tmp.Free()
+    defer inv.Free()
 
-    err = tmp.Invert()
+    err = inv.Invert(p2)
     if err != nil {
         return err
     }
 
-    err = m.Add(tmp)
+    err = m.Add(p1, inv)
     if err != nil {
         return err
     }
@@ -283,14 +284,24 @@ func (m *Point) Sub(other Point) error {
     return nil
 }
 
-func (m *Point) Invert() error {
+func (m *Point) Invert(point Point) error {
+    // Computes the additive inverse of a Point
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)
 
-    result := C.EC_POINT_invert(m.Curve.Group, m.ECPoint, ctx)
+    inv, err := point.Copy()
+    if err != nil {
+        return err
+    }
+
+    result := C.EC_POINT_invert(m.Curve.Group, inv.ECPoint, ctx)
     if result != 1 {
         return errors.New("EC_POINT_invert failure")
     }
+
+    // Swap ECPoints between m and inv
+    m.Free()
+    m.ECPoint = inv.ECPoint
 
     return nil
 }
