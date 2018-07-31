@@ -249,13 +249,13 @@ func (m *Point) Mul(scalar ModBigNum, point Point) error {
     return nil
 }
 
-func (m *Point) Add(other Point) error {
+func (m *Point) Add(p1, p2 Point) error {
     // Performs an EC_POINT_add on two EC_POINTS.
 
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)
 
-    result := C.EC_POINT_add(m.Curve.Group, m.ECPoint, m.ECPoint, other.ECPoint, ctx)
+    result := C.EC_POINT_add(m.Curve.Group, m.ECPoint, p1.ECPoint, p2.ECPoint, ctx)
     if result != 1 {
         return errors.New("EC_POINT_add failure")
     }

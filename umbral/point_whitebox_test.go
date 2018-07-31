@@ -230,6 +230,7 @@ func TestPointMul(t *testing.T) {
     if err != nil {
         t.Error(err)
     }
+    defer rG.Free()
 
     err = rG.Mul(r, G)
     if err != nil {
@@ -256,7 +257,13 @@ func TestPointAdd(t *testing.T) {
     }
     defer point2.Free()
 
-    err = point1.Add(point2)
+    sum, err := GetNewPoint(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer sum.Free()
+
+    err = sum.Add(point1, point2)
     if err != nil {
         t.Error(err)
     }
