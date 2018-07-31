@@ -169,13 +169,13 @@ func (m *ModBigNum) Mul(bn1, bn2 ModBigNum) error {
 }
 
 func (m *ModBigNum) Div(bn1, bn2 ModBigNum) error {
-    inv, err := bn2.Copy()
+    inv, err := GetNewModBN(nil, m.Curve)
     if err != nil {
         return err
     }
     defer inv.Free()
 
-    err = inv.Invert()
+    err = inv.Invert(bn2)
     if err != nil {
         return err
     }
@@ -222,13 +222,13 @@ func (m *ModBigNum) Sub(bn1, bn2 ModBigNum) error {
     return nil
 }
 
-func (m *ModBigNum) Invert() error {
+func (m *ModBigNum) Invert(bn1 ModBigNum) error {
     inverse := GetBigNum()
 
     bnCtx := C.BN_CTX_new()
     defer FreeBNCTX(bnCtx)
 
-    result := C.BN_mod_inverse(inverse, m.Bignum, m.Curve.Order, bnCtx)
+    result := C.BN_mod_inverse(inverse, bn1.Bignum, m.Curve.Order, bnCtx)
 
     if unsafe.Pointer(result) == C.NULL {
         return errors.New("BN_mod_inverse failure")

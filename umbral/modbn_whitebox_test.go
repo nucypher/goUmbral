@@ -631,7 +631,13 @@ func TestInverse(t *testing.T) {
     }
     defer modbn.Free()
 
-    err = modbn.Invert()
+    inv, err := GetNewModBN(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer inv.Free()
+
+    err = inv.Invert(modbn)
     if err != nil {
         t.Error(err)
     }
