@@ -218,7 +218,6 @@ func TestPointMul(t *testing.T) {
     defer curve.Free()
 
     G := GetGeneratorFromCurve(curve)
-    defer G.Free()
 
     r, err := GenRandModBN(curve)
     if err != nil {

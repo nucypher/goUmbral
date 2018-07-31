@@ -120,7 +120,7 @@ func TestPointOperations(t *testing.T) {
 
         switch k.Op {
         case "Addition":
-            err = tmp1.Add(tmp2)
+            err = tmp1.Add(tmp1, tmp2)
             if err != nil {
                 t.Error(err)
             }
@@ -144,7 +144,7 @@ func TestPointOperations(t *testing.T) {
                 t.Error("After adding, the points were not equal")
             }
         case "Subtraction":
-            err = tmp1.Sub(tmp2)
+            err = tmp1.Sub(tmp1, tmp2)
             if err != nil {
                 t.Error(err)
             }
@@ -169,7 +169,7 @@ func TestPointOperations(t *testing.T) {
                 t.Error("After subtraction, the points were not equal")
             }
         case "Multiplication":
-            err = tmp1.Mul(tmp4)
+            err = tmp1.Mul(tmp4, tmp1)
             if err != nil {
                 t.Error(err)
             }
@@ -194,7 +194,7 @@ func TestPointOperations(t *testing.T) {
                 t.Error("After multiplication, the points were not equal")
             }
         case "Inversion":
-            err = tmp1.Invert()
+            err = tmp1.Invert(tmp1)
             if err != nil {
                 t.Error(err)
             }

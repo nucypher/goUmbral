@@ -128,7 +128,9 @@ func (m *ModBigNum) Pow(base, exp ModBigNum) error {
     Performs a BN_mod_exp on two BIGNUMS.
     WARNING: Only in constant time if BN_FLG_CONSTTIME is set on the BN.
     */
-    power := GetBigNum()
+    if m.Bignum == nil {
+        m.Bignum = GetBigNum()
+    }
 
     bnCtx := C.BN_CTX_new()
     defer FreeBNCTX(bnCtx)
@@ -142,10 +144,6 @@ func (m *ModBigNum) Pow(base, exp ModBigNum) error {
     if result != 1 {
         return errors.New("BN_mod_exp failure")
     }
-
-    FreeBigNum(m.Bignum)
-
-    m.Bignum = power
     return nil
 }
 
@@ -153,18 +151,16 @@ func (m *ModBigNum) Mul(bn1, bn2 ModBigNum) error {
     /*
     Performs a BN_mod_mul between two BIGNUMS.
     */
-    product := GetBigNum()
-
+    if m.Bignum == nil {
+        m.Bignum = GetBigNum()
+    }
     bnCtx := C.BN_CTX_new()
     defer FreeBNCTX(bnCtx)
 
-    result := C.BN_mod_mul(product, bn1.Bignum, bn2.Bignum, m.Curve.Order, bnCtx)
+    result := C.BN_mod_mul(m.Bignum, bn1.Bignum, bn2.Bignum, m.Curve.Order, bnCtx)
     if result != 1 {
         return errors.New("BN_mod_mul failure")
     }
-    FreeBigNum(m.Bignum)
-
-    m.Bignum = product
     return nil
 }
 
@@ -189,59 +185,57 @@ func (m *ModBigNum) Div(bn1, bn2 ModBigNum) error {
 }
 
 func (m *ModBigNum) Add(bn1, bn2 ModBigNum) error {
-    sum := GetBigNum()
+    if m.Bignum == nil {
+        m.Bignum = GetBigNum()
+    }
 
     bnCtx := C.BN_CTX_new()
     defer FreeBNCTX(bnCtx)
 
-    result := C.BN_mod_add(sum, bn1.Bignum, bn2.Bignum, m.Curve.Order, bnCtx)
+    result := C.BN_mod_add(m.Bignum, bn1.Bignum, bn2.Bignum, m.Curve.Order, bnCtx)
     if result != 1 {
         return errors.New("BN_mod_add failure")
     }
-
-    FreeBigNum(m.Bignum)
-
-    m.Bignum = sum
     return nil
 }
 
 func (m *ModBigNum) Sub(bn1, bn2 ModBigNum) error {
-    sub := GetBigNum()
+    if m.Bignum == nil {
+        m.Bignum = GetBigNum()
+    }
 
     bnCtx := C.BN_CTX_new()
     defer FreeBNCTX(bnCtx)
 
-    result := C.BN_mod_sub(sub, bn1.Bignum, bn2.Bignum, m.Curve.Order, bnCtx)
+    result := C.BN_mod_sub(m.Bignum, bn1.Bignum, bn2.Bignum, m.Curve.Order, bnCtx)
     if result != 1 {
         return errors.New("BN_mod_sub failure")
     }
-
-    FreeBigNum(m.Bignum)
-
-    m.Bignum = sub
     return nil
 }
 
 func (m *ModBigNum) Invert(bn1 ModBigNum) error {
-    inverse := GetBigNum()
+    if m.Bignum == nil {
+        m.Bignum = GetBigNum()
+    }
 
     bnCtx := C.BN_CTX_new()
     defer FreeBNCTX(bnCtx)
 
-    result := C.BN_mod_inverse(inverse, bn1.Bignum, m.Curve.Order, bnCtx)
+    result := C.BN_mod_inverse(m.Bignum, bn1.Bignum, m.Curve.Order, bnCtx)
 
     if unsafe.Pointer(result) == C.NULL {
         return errors.New("BN_mod_inverse failure")
     }
-
-    FreeBigNum(m.Bignum)
-
-    m.Bignum = inverse
     return nil
 }
 
 func (m *ModBigNum) Neg(bn1 ModBigNum) error {
     // Computes the modular opposite (i.e., additive inverse) of a BIGNUM
+    if m.Bignum == nil {
+        m.Bignum = GetBigNum()
+    }
+
     zero := IntToBN(0)
     defer FreeBigNum(zero)
 
@@ -258,19 +252,17 @@ func (m *ModBigNum) Neg(bn1 ModBigNum) error {
 }
 
 func (m *ModBigNum) Mod(bn1, modulus ModBigNum) error {
-    rem := GetBigNum()
+    if m.Bignum == nil {
+        m.Bignum = GetBigNum()
+    }
 
     bnCtx := C.BN_CTX_new()
     defer FreeBNCTX(bnCtx)
 
-    result := C.BN_nnmod(rem, bn1.Bignum, modulus.Bignum, bnCtx)
+    result := C.BN_nnmod(m.Bignum, bn1.Bignum, modulus.Bignum, bnCtx)
     if result != 1 {
         return errors.New("BN_nnmod failure")
     }
-
-    FreeBigNum(m.Bignum)
-
-    m.Bignum = rem
     return nil
 }
 

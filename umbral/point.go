@@ -205,6 +205,7 @@ func (m Point) ToBytes(isCompressed bool) ([]byte, error) {
 }
 
 func GetGeneratorFromCurve(curve Curve) Point {
+    // DO NOT free both the generator and the curve.
     // Consider making a copy of this point
     // so there are not any double frees.
     return Point{curve.Generator, curve}
@@ -380,7 +381,7 @@ func (m Point) Copy() (Point, error) {
     return Point{ECPoint: point, Curve: m.Curve}, nil
 }
 
-func (m Point) Free() {
+func (m *Point) Free() {
     FreeECPoint(m.ECPoint)
     // Do not free the curve.
     // m.Curve.Free()

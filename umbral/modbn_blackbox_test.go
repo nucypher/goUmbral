@@ -102,7 +102,7 @@ func TestModBNOperations(t *testing.T) {
 
         switch k.Op {
         case "Addition":
-            err = tmp1.Add(tmp2)
+            err = tmp1.Add(tmp1, tmp2)
             if err != nil {
                 t.Error(err)
             }
@@ -122,7 +122,7 @@ func TestModBNOperations(t *testing.T) {
                 t.Error("After adding, the modbns were not equal")
             }
         case "Subtraction":
-            err = tmp1.Sub(tmp2)
+            err = tmp1.Sub(tmp1, tmp2)
             if err != nil {
                 t.Error(err)
             }
@@ -142,7 +142,7 @@ func TestModBNOperations(t *testing.T) {
                 t.Error("After subtraction, the modbns were not equal")
             }
         case "Multiplication":
-            err = tmp1.Mul(tmp2)
+            err = tmp1.Mul(tmp1, tmp2)
             if err != nil {
                 t.Error(err)
             }
@@ -162,7 +162,7 @@ func TestModBNOperations(t *testing.T) {
                 t.Error("After multiplication, the modbns were not equal")
             }
         case "Division":
-            err = tmp1.Div(tmp2)
+            err = tmp1.Div(tmp1, tmp2)
             if err != nil {
                 t.Error(err)
             }
@@ -182,7 +182,7 @@ func TestModBNOperations(t *testing.T) {
                 t.Error("After division, the modbns were not equal")
             }
         case "Pow":
-            err = tmp1.Pow(tmp2)
+            err = tmp1.Pow(tmp1, tmp2)
             if err != nil {
                 t.Error(err)
             }
@@ -202,7 +202,7 @@ func TestModBNOperations(t *testing.T) {
                 t.Error("After exponentiating, the modbns were not equal")
             }
         case "Inversion":
-            err = tmp1.Invert()
+            err = tmp1.Invert(tmp1)
             if err != nil {
                 t.Error(err)
             }
@@ -222,7 +222,7 @@ func TestModBNOperations(t *testing.T) {
                 t.Error("After inverting, the modbns were not equal")
             }
         case "Neg":
-            err = tmp1.Neg()
+            err = tmp1.Neg(tmp1)
             if err != nil {
                 t.Error(err)
             }
