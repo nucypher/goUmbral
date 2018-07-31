@@ -524,7 +524,13 @@ func TestDiv(t *testing.T) {
     }
     defer modbn2.Free()
 
-    err = modbn1.Div(modbn2)
+    quotient, err := GetNewModBN(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer quotient.Free()
+
+    err = quotient.Div(modbn1, modbn2)
     if err != nil {
         t.Error(err)
     }

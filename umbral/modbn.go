@@ -168,19 +168,19 @@ func (m *ModBigNum) Mul(bn1, bn2 ModBigNum) error {
     return nil
 }
 
-func (m *ModBigNum) Div(other ModBigNum) error {
-    tmpBN, err := other.Copy()
+func (m *ModBigNum) Div(bn1, bn2 ModBigNum) error {
+    inv, err := bn2.Copy()
     if err != nil {
         return err
     }
-    defer tmpBN.Free()
+    defer inv.Free()
 
-    err = tmpBN.Invert()
+    err = inv.Invert()
     if err != nil {
         return err
     }
 
-    err = m.Mul(tmpBN)
+    err = m.Mul(bn1, inv)
     if err != nil {
         return err
     }
