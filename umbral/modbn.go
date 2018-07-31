@@ -149,7 +149,7 @@ func (m *ModBigNum) Pow(base, exp ModBigNum) error {
     return nil
 }
 
-func (m *ModBigNum) Mul(other ModBigNum) error {
+func (m *ModBigNum) Mul(bn1, bn2 ModBigNum) error {
     /*
     Performs a BN_mod_mul between two BIGNUMS.
     */
@@ -158,7 +158,7 @@ func (m *ModBigNum) Mul(other ModBigNum) error {
     bnCtx := C.BN_CTX_new()
     defer FreeBNCTX(bnCtx)
 
-    result := C.BN_mod_mul(product, m.Bignum, other.Bignum, m.Curve.Order, bnCtx)
+    result := C.BN_mod_mul(product, bn1.Bignum, bn2.Bignum, m.Curve.Order, bnCtx)
     if result != 1 {
         return errors.New("BN_mod_mul failure")
     }

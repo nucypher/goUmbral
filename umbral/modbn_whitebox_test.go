@@ -482,8 +482,14 @@ func TestMul(t *testing.T) {
     }
     defer modbn2.Free()
 
-    // 2^5 % curve.Order
-    err = modbn1.Mul(modbn2)
+    product, err := GetNewModBN(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer product.Free()
+
+    // 2*300 % curve.Order
+    err = product.Mul(modbn1, modbn2)
     if err != nil {
         t.Error(err)
     }
@@ -494,8 +500,8 @@ func TestMul(t *testing.T) {
     }
     defer modbn3.Free()
 
-    if !modbn1.Equals(modbn3) {
-        t.Error("modbn1 doesn't equal modbn3: 600")
+    if !product.Equals(modbn3) {
+        t.Error("product doesn't equal modbn3: 600")
     }
 }
 
