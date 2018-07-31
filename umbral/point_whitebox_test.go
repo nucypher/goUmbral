@@ -217,19 +217,22 @@ func TestPointMul(t *testing.T) {
     }
     defer curve.Free()
 
-    point, err := GenRandPoint(curve)
+    G := GetGeneratorFromCurve(curve)
+    defer G.Free()
+
+    r, err := GenRandModBN(curve)
     if err != nil {
         t.Error(err)
     }
-    defer point.Free()
+    defer r.Free()
 
-    modbn, err := GenRandModBN(curve)
+    rG, err := GetNewPoint(nil, curve)
     if err != nil {
         t.Error(err)
     }
-    defer modbn.Free()
+    defer rG.Free()
 
-    err = point.Mul(modbn)
+    err = rG.Mul(r, G)
     if err != nil {
         t.Error(err)
     }
@@ -254,7 +257,13 @@ func TestPointAdd(t *testing.T) {
     }
     defer point2.Free()
 
-    err = point1.Add(point2)
+    sum, err := GetNewPoint(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer sum.Free()
+
+    err = sum.Add(point1, point2)
     if err != nil {
         t.Error(err)
     }
@@ -266,6 +275,12 @@ func TestPointSub(t *testing.T) {
         t.Error(err)
     }
     defer curve.Free()
+
+    sum, err := GetNewPoint(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer sum.Free()
 
     point1, err := GenRandPoint(curve)
     if err != nil {
@@ -279,7 +294,7 @@ func TestPointSub(t *testing.T) {
     }
     defer point2.Free()
 
-    err = point1.Sub(point2)
+    err = sum.Sub(point1, point2)
     if err != nil {
         t.Error(err)
     }
@@ -298,7 +313,13 @@ func TestPointInvert(t *testing.T) {
     }
     defer point.Free()
 
-    err = point.Invert()
+    invPoint, err := GetNewPoint(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer invPoint.Free()
+
+    err = invPoint.Invert(point)
     if err != nil {
         t.Error(err)
     }
