@@ -39,18 +39,18 @@ type Point struct {
 func GetNewPoint(point ECPoint, curve Curve) (Point, error) {
     // Generate a new Point struct based on the arguments provided.
     //
-    // If point is nil then GetNewPoint will generate a new cryptographically secure
-    // ECPoint and check for errors before returning the new Point.
+    // If point is nil then GetNewPoint will give a null ECPoint
+    // and check for errors before returning the new Point.
     //
     // if point is nil AND the curve group is also nil then
     // GetNewPoint will fail and return the error.
     var err error = nil
     if point == nil {
-        newPoint, err := GenRandPoint(curve)
+        newPoint, err := GetNewECPoint(curve)
         if err != nil {
             return Point{}, err
         }
-        return newPoint, err
+        return Point{ECPoint: newPoint, Curve: curve}, err
     }
     return Point{ECPoint: point, Curve: curve}, err
 }
