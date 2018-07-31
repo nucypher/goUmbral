@@ -596,7 +596,13 @@ func TestSub(t *testing.T) {
     }
     defer modbn2.Free()
 
-    err = modbn1.Sub(modbn2)
+    diff, err := GetNewModBN(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer diff.Free()
+
+    err = diff.Sub(modbn1, modbn2)
     if err != nil {
         t.Error(err)
     }
@@ -607,8 +613,8 @@ func TestSub(t *testing.T) {
     }
     defer modbn3.Free()
 
-    if !modbn1.Equals(modbn3) {
-        t.Error("modbn1 doesn't equal modbn3: 768")
+    if !diff.Equals(modbn3) {
+        t.Error("diff doesn't equal modbn3: 768")
     }
 }
 

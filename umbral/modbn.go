@@ -205,13 +205,13 @@ func (m *ModBigNum) Add(bn1, bn2 ModBigNum) error {
     return nil
 }
 
-func (m *ModBigNum) Sub(other ModBigNum) error {
+func (m *ModBigNum) Sub(bn1, bn2 ModBigNum) error {
     sub := GetBigNum()
 
     bnCtx := C.BN_CTX_new()
     defer FreeBNCTX(bnCtx)
 
-    result := C.BN_mod_sub(sub, m.Bignum, other.Bignum, m.Curve.Order, bnCtx)
+    result := C.BN_mod_sub(sub, bn1.Bignum, bn2.Bignum, m.Curve.Order, bnCtx)
     if result != 1 {
         return errors.New("BN_mod_sub failure")
     }
