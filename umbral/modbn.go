@@ -35,9 +35,11 @@ type ModBigNum struct {
 }
 
 func GetNewModBN(cNum BigNum, curve Curve) (ModBigNum, error) {
-    // Return the ModBigNum only if the provided Bignum is within the order of the curve.
-    if !BNIsWithinOrder(cNum, curve) {
-        return ModBigNum{}, errors.New("The provided BIGNUM is not on the provided curve.")
+    if cNum != nil {
+        // Return the ModBigNum only if the provided Bignum is within the order of the curve.
+        if !BNIsWithinOrder(cNum, curve) {
+            return ModBigNum{}, errors.New("The provided BIGNUM is not on the provided curve.")
+        }
     }
     return ModBigNum{Bignum: cNum, Curve: curve}, nil
 }
