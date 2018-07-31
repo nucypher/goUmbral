@@ -687,7 +687,13 @@ func TestMod(t *testing.T) {
     }
     defer modbn2.Free()
 
-    err = modbn1.Mod(modbn2)
+    remainder, err := GetNewModBN(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer remainder.Free()
+
+    err = remainder.Mod(modbn1, modbn2)
     if err != nil {
         t.Error(err)
     }

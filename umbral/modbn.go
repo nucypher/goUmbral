@@ -257,13 +257,13 @@ func (m *ModBigNum) Neg(bn1 ModBigNum) error {
     return nil
 }
 
-func (m *ModBigNum) Mod(other ModBigNum) error {
+func (m *ModBigNum) Mod(bn1, modulus ModBigNum) error {
     rem := GetBigNum()
 
     bnCtx := C.BN_CTX_new()
     defer FreeBNCTX(bnCtx)
 
-    result := C.BN_nnmod(rem, m.Bignum, other.Bignum, bnCtx)
+    result := C.BN_nnmod(rem, bn1.Bignum, modulus.Bignum, bnCtx)
     if result != 1 {
         return errors.New("BN_nnmod failure")
     }
