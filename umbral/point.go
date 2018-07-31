@@ -265,13 +265,13 @@ func (m *Point) Add(p1, p2 Point) error {
 
 func (m *Point) Sub(p1, p2 Point) error {
     // Performs a subtraction on two EC_POINTS by adding by the inverse.
-    inv, err := p2.Copy()
+    inv, err := GetNewPoint(nil, m.Curve)
     if err != nil {
         return err
     }
     defer inv.Free()
 
-    err = inv.Invert()
+    err = inv.Invert(p2)
     if err != nil {
         return err
     }
@@ -284,14 +284,24 @@ func (m *Point) Sub(p1, p2 Point) error {
     return nil
 }
 
-func (m *Point) Invert() error {
+func (m *Point) Invert(point Point) error {
+    // Computes the additive inverse of a Point
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)
 
-    result := C.EC_POINT_invert(m.Curve.Group, m.ECPoint, ctx)
+    inv, err := point.Copy()
+    if err != nil {
+        return err
+    }
+
+    result := C.EC_POINT_invert(m.Curve.Group, inv.ECPoint, ctx)
     if result != 1 {
         return errors.New("EC_POINT_invert failure")
     }
+
+    // Swap ECPoints between m and inv
+    m.Free()
+    m.ECPoint = inv.ECPoint
 
     return nil
 }

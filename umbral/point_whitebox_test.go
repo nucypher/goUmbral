@@ -313,7 +313,13 @@ func TestPointInvert(t *testing.T) {
     }
     defer point.Free()
 
-    err = point.Invert()
+    invPoint, err := GetNewPoint(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer invPoint.Free()
+
+    err = invPoint.Invert(point)
     if err != nil {
         t.Error(err)
     }
