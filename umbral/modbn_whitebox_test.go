@@ -643,6 +643,31 @@ func TestInverse(t *testing.T) {
     }
 }
 
+func TestNeg(t *testing.T) {
+    curve, err := GetNewCurve(SECP256K1)
+    if err != nil {
+        t.Error(err)
+    }
+    defer curve.Free()
+
+    modbn, err := Int2ModBN(512, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer modbn.Free()
+
+    neg, err := GetNewModBN(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer neg.Free()
+
+    err = neg.Neg(modbn)
+    if err != nil {
+        t.Error(err)
+    }
+}
+
 func TestMod(t *testing.T) {
     curve, err := GetNewCurve(SECP256K1)
     if err != nil {

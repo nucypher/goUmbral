@@ -240,7 +240,7 @@ func (m *ModBigNum) Invert(bn1 ModBigNum) error {
     return nil
 }
 
-func (m *ModBigNum) Neg() error {
+func (m *ModBigNum) Neg(bn1 ModBigNum) error {
     // Computes the modular opposite (i.e., additive inverse) of a BIGNUM
     zero := IntToBN(0)
     defer FreeBigNum(zero)
@@ -248,7 +248,7 @@ func (m *ModBigNum) Neg() error {
     ctx := C.BN_CTX_new()
     defer FreeBNCTX(ctx)
 
-    result := C.BN_mod_sub(m.Bignum, zero, m.Bignum, m.Curve.Order, ctx)
+    result := C.BN_mod_sub(m.Bignum, zero, bn1.Bignum, m.Curve.Order, ctx)
 
     if result != 1 {
         return errors.New("BN_mod_sub failure")
