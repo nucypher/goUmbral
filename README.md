@@ -10,7 +10,7 @@ python library, [pyUmbral][3].
 
 goUmbral is still in major development and the API in considered unstable. It will be changing a lot.
 
-Release Blogpost: https://blog.nucypher.com/introducing-goumbral-ce979e616359
+Pre-Release Blogpost: https://blog.nucypher.com/introducing-goumbral-ce979e616359
 
 Quick Installation
 ------------------
