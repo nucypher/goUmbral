@@ -378,13 +378,19 @@ func TestPow(t *testing.T) {
         }
         defer modbn2.Free()
 
+        power, err := GetNewModBN(nil, curve)
+        if err != nil {
+            t.Error(err)
+        }
+        defer power.Free()
+
         // 2^5 % curve.Order
-        err = modbn1.Pow(modbn2)
+        err = power.Pow(modbn1, modbn2)
         if err != nil {
             t.Error(err)
         }
 
-        t.Log(BNToDecStr(modbn1.Bignum))
+        t.Log(BNToDecStr(power.Bignum))
 
         goBN1 := big.NewInt(2)
         goBN2 := big.NewInt(5)
@@ -400,8 +406,8 @@ func TestPow(t *testing.T) {
         }
         defer modbn3.Free()
 
-        if !modbn1.Equals(modbn3) {
-            t.Error("modbn1 doesn't equal modbn3 which was converted from a Go big.Int")
+        if !power.Equals(modbn3) {
+            t.Error("power doesn't equal modbn3 which was converted from a Go big.Int")
         }
     })
     t.Run("big powers", func(t *testing.T) {
@@ -423,13 +429,19 @@ func TestPow(t *testing.T) {
         }
         defer modbn2.Free()
 
-        // 2^5 % curve.Order
-        err = modbn1.Pow(modbn2)
+        power, err := GetNewModBN(nil, curve)
+        if err != nil {
+            t.Error(err)
+        }
+        defer power.Free()
+
+        // 2^300 % curve.Order
+        err = power.Pow(modbn1, modbn2)
         if err != nil {
             t.Error(err)
         }
 
-        t.Log(BNToDecStr(modbn1.Bignum))
+        t.Log(BNToDecStr(power.Bignum))
 
         goBN1 := big.NewInt(2)
         goBN2 := big.NewInt(300)
@@ -445,8 +457,8 @@ func TestPow(t *testing.T) {
         }
         defer modbn3.Free()
 
-        if !modbn1.Equals(modbn3) {
-            t.Error("modbn1 doesn't equal modbn3 which was converted from a Go big.Int")
+        if !power.Equals(modbn3) {
+            t.Error("power doesn't equal modbn3 which was converted from a Go big.Int")
         }
     })
 }
@@ -470,8 +482,14 @@ func TestMul(t *testing.T) {
     }
     defer modbn2.Free()
 
-    // 2^5 % curve.Order
-    err = modbn1.Mul(modbn2)
+    product, err := GetNewModBN(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer product.Free()
+
+    // 2*300 % curve.Order
+    err = product.Mul(modbn1, modbn2)
     if err != nil {
         t.Error(err)
     }
@@ -482,8 +500,8 @@ func TestMul(t *testing.T) {
     }
     defer modbn3.Free()
 
-    if !modbn1.Equals(modbn3) {
-        t.Error("modbn1 doesn't equal modbn3: 600")
+    if !product.Equals(modbn3) {
+        t.Error("product doesn't equal modbn3: 600")
     }
 }
 
@@ -506,7 +524,13 @@ func TestDiv(t *testing.T) {
     }
     defer modbn2.Free()
 
-    err = modbn1.Div(modbn2)
+    quotient, err := GetNewModBN(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer quotient.Free()
+
+    err = quotient.Div(modbn1, modbn2)
     if err != nil {
         t.Error(err)
     }
@@ -531,7 +555,13 @@ func TestAdd(t *testing.T) {
     }
     defer modbn2.Free()
 
-    err = modbn1.Add(modbn2)
+    sum, err := GetNewModBN(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer sum.Free()
+
+    err = sum.Add(modbn1, modbn2)
     if err != nil {
         t.Error(err)
     }
@@ -542,8 +572,8 @@ func TestAdd(t *testing.T) {
     }
     defer modbn3.Free()
 
-    if !modbn1.Equals(modbn3) {
-        t.Error("modbn1 doesn't equal modbn3: 768")
+    if !sum.Equals(modbn3) {
+        t.Error("sum doesn't equal modbn3: 768")
     }
 }
 
@@ -566,7 +596,13 @@ func TestSub(t *testing.T) {
     }
     defer modbn2.Free()
 
-    err = modbn1.Sub(modbn2)
+    diff, err := GetNewModBN(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer diff.Free()
+
+    err = diff.Sub(modbn1, modbn2)
     if err != nil {
         t.Error(err)
     }
@@ -577,8 +613,8 @@ func TestSub(t *testing.T) {
     }
     defer modbn3.Free()
 
-    if !modbn1.Equals(modbn3) {
-        t.Error("modbn1 doesn't equal modbn3: 768")
+    if !diff.Equals(modbn3) {
+        t.Error("diff doesn't equal modbn3: 768")
     }
 }
 
@@ -595,7 +631,38 @@ func TestInverse(t *testing.T) {
     }
     defer modbn.Free()
 
-    err = modbn.Invert()
+    inv, err := GetNewModBN(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer inv.Free()
+
+    err = inv.Invert(modbn)
+    if err != nil {
+        t.Error(err)
+    }
+}
+
+func TestNeg(t *testing.T) {
+    curve, err := GetNewCurve(SECP256K1)
+    if err != nil {
+        t.Error(err)
+    }
+    defer curve.Free()
+
+    modbn, err := Int2ModBN(512, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer modbn.Free()
+
+    neg, err := GetNewModBN(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer neg.Free()
+
+    err = neg.Neg(modbn)
     if err != nil {
         t.Error(err)
     }
@@ -620,7 +687,13 @@ func TestMod(t *testing.T) {
     }
     defer modbn2.Free()
 
-    err = modbn1.Mod(modbn2)
+    remainder, err := GetNewModBN(nil, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer remainder.Free()
+
+    err = remainder.Mod(modbn1, modbn2)
     if err != nil {
         t.Error(err)
     }
