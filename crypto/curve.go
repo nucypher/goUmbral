@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with goUmbral. If not, see <https://www.gnu.org/licenses/>.
-package umbral
+package crypto
 
 // #include "shim.h"
 import "C"
@@ -49,9 +49,9 @@ func GetNewCurve(nid C.int) (Curve, error) {
     default:
         return Curve{}, errors.New("This curve is not supported. Please use one of the constant curves defined in curve.go.")
     }
-    group := GetECGroupByCurveNID(int(nid))
-    order := GetECOrderByGroup(group)
-    generator := GetECGeneratorByGroup(group)
+    var group ECGroup = GetECGroupByCurveNID(nid)
+    var order BigNum = GetECOrderByGroup(group)
+    var generator ECPoint = GetECGeneratorByGroup(group)
     return Curve{NID: int(nid), Group: group, Order: order, Generator: generator}, nil
 }
 
