@@ -21,6 +21,7 @@ import "C"
 import (
     "unsafe"
     "math/big"
+    "log"
 )
 
 type BigNum *C.BIGNUM
@@ -32,16 +33,37 @@ type ECPoint *C.EC_POINT
 func NewBigNum() BigNum {
     // bn must be freed later by the calling function.
     var bn BigNum = C.BN_secure_new()
+    if bn == nil {
+        log.Panic(NewOpenSSLError())
+    }
     C.BN_set_flags(bn, C.BN_FLG_CONSTTIME)
     // Both BN_FLG_CONSTTIME and BN_FLG_SECURE are set.
     return bn
 }
 
+func NewBNCtx() BNCtx {
+    var ctx BNCtx = C.BN_CTX_secure_new()
+    if ctx == nil {
+        log.Panic(NewOpenSSLError())
+    }
+    return ctx
+}
+
+func NewBNMontCtx() BNMontCtx {
+    var montCtx BNMontCtx = C.BN_MONT_CTX_new()
+    if montCtx == nil {
+        log.Panic(NewOpenSSLError())
+    }
+    return montCtx
+}
+
 func NewECPoint(curve Curve) ECPoint {
     // newPoint must be freed later by the calling function.
     newPoint := C.EC_POINT_new(curve.Group)
-    if unsafe.Pointer(newPoint) == C.NULL {
-        panic("Invalid Curve Group: New EC Point Failed")
+    if newPoint == nil {
+        // Invalid Curve Group: New EC Point Failed.
+        log.Print(NewOpenSSLError())
+        return nil
     }
     return newPoint
 }
@@ -69,8 +91,10 @@ func FreeBNMontCtx(montCtx BNMontCtx) {
 func GetECGroupByCurveNID(curveNid C.int) ECGroup {
     // curve must be freed later by the calling function.
     var curve ECGroup = C.EC_GROUP_new_by_curve_name(curveNid)
-    if unsafe.Pointer(curve) == C.NULL {
-        panic("Invalid Curve NID: Curve Group Lookup Failed")
+    if curve == nil {
+        // Invalid Curve NID: Curve Group Lookup Failed.
+        log.Print(NewOpenSSLError())
+        return nil
     }
     return curve
 }
@@ -84,7 +108,9 @@ func GetECOrderByGroup(group ECGroup) BigNum {
 
     result := C.EC_GROUP_get_order(group, order, ctx)
     if result != 1 {
-        panic("Invalid Group: Curve Order Lookup Failed")
+        // Invalid Group: Curve Order Lookup Failed.
+        log.Print(NewOpenSSLError())
+        return nil
     }
     return order
 }
@@ -94,8 +120,10 @@ func GetECGeneratorByGroup(group ECGroup) ECPoint {
     // Free the ECGroup instead.
     var generator ECPoint = C.EC_GROUP_get0_generator(group)
 
-    if unsafe.Pointer(generator) == C.NULL {
-        panic("Invalid Group: Generator Lookup Failed")
+    if generator == nil {
+        // Invalid Group: Generator Lookup Failed.
+        log.Print(NewOpenSSLError())
+        return nil
     }
     return generator
 }
@@ -124,7 +152,9 @@ func GetECPointFromAffine(affineX, affineY BigNum, curve Curve) ECPoint {
     result := C.EC_POINT_set_affine_coordinates_GFp(
             curve.Group, newPoint, affineX, affineY, ctx)
     if result != 1 {
-        panic("Invalid Affine or Curve: EC Point Lookup Failed")
+        // Invalid Affine or Curve: EC Point Lookup Failed.
+        log.Print(NewOpenSSLError())
+        return nil
     }
     return newPoint
 }
@@ -140,7 +170,9 @@ func GetAffineCoordsFromECPoint(point ECPoint, curve Curve) (BigNum, BigNum) {
     result := C.EC_POINT_get_affine_coordinates_GFp(
             curve.Group, point, affineX, affineY, ctx)
     if result != 1 {
-        panic("Invalid ECPoint or Curve: Affine Lookup Failure")
+        // Invalid ECPoint or Curve: Affine Lookup Failed.
+        log.Print(NewOpenSSLError())
+        return nil, nil
     }
     return affineX, affineY
 }
@@ -150,14 +182,13 @@ func TmpBNMontCTX(modulus BigNum) BNMontCtx {
     defer FreeBNCtx(ctx)
 
     // montCtx must be freed later by the calling function.
-    var montCtx BNMontCtx = C.BN_MONT_CTX_new()
-    if unsafe.Pointer(montCtx) == C.NULL {
-        panic("New Montgomery CTX Allocation Failed")
-    }
+    var montCtx BNMontCtx = NewBNMontCtx()
 
     result := C.BN_MONT_CTX_set(montCtx, modulus, ctx)
     if result != 1 {
-        panic("Set Montgomery CTX With Modulus Failed")
+        // Set Montgomery CTX With Modulus Failed.
+        log.Print(NewOpenSSLError())
+        return nil
     }
     return montCtx
 }
@@ -190,8 +221,10 @@ func BytesToBN(bytes []byte) BigNum {
     defer C.free(cBytes)
     // cBN must be freed later by the calling function.
     var cBN BigNum = C.BN_bin2bn((*C.uint8_t)(cBytes), C.int(len(bytes)), NewBigNum())
-    if unsafe.Pointer(cBN) == C.NULL {
-        panic("Binary Conversion to BigNum Failed")
+    if cBN == nil {
+        // Deserialization Failed.
+        log.Print(NewOpenSSLError())
+        return nil
     }
     return cBN
 }
@@ -204,7 +237,9 @@ func BNToBytes(cBN BigNum) []byte {
 
     var written C.int = C.BN_bn2bin(cBN, (*C.uint8_t)(cSpace))
     if int(written) != size {
-        panic("Invalid Written Size: Binary Conversion Failed")
+        // Invalid Written Size: Serialization Failed.
+        log.Print(NewOpenSSLError())
+        return nil
     }
     bytes := C.GoBytes(cSpace, written)
     return bytes
@@ -215,20 +250,21 @@ func SizeOfBN(cBN BigNum) int {
     return int((C.BN_num_bits(cBN)+7)/8)
 }
 
-func CompareBN(cBN1, cBN2 BigNum) int {
+func CmpBN(cBN1, cBN2 BigNum) int {
     return int(C.BN_cmp(cBN1, cBN2))
 }
 
-func MultiplyBN(cBN1, cBN2 BigNum) BigNum {
+func MulBN(cBN1, cBN2 BigNum) BigNum {
     // newBN must be freed later by the calling function.
     var newBN BigNum = NewBigNum()
 
-    var ctx BNCtx = C.BN_CTX_new()
+    var ctx BNCtx = NewBNCtx()
     defer FreeBNCtx(ctx)
 
     result := int(C.BN_mul(newBN, cBN1, cBN2, ctx))
     if result != 1 {
-        panic("Invalid BigNum: Multiplication Failed")
+        log.Print(NewOpenSSLError())
+        return nil
     }
     return newBN
 }
@@ -239,7 +275,8 @@ func AddBN(cBN1, cBN2 BigNum) BigNum {
 
     result := C.BN_add(newBN, cBN1, cBN2)
     if result != 1 {
-        panic("Invalid BigNum: Addition Failed")
+        log.Print(NewOpenSSLError())
+        return nil
     }
     return newBN
 }
@@ -250,7 +287,8 @@ func SubBN(cBN1, cBN2 BigNum) BigNum {
 
     result := C.BN_sub(newBN, cBN1, cBN2)
     if result != 1 {
-        panic("Invalid BigNum: Subtraction Failed")
+        log.Print(NewOpenSSLError())
+        return nil
     }
     return newBN
 }
@@ -260,22 +298,27 @@ func DivBN(numerator, divisor BigNum) (BigNum, BigNum) {
     var quotient BigNum = NewBigNum()
     var rem BigNum = NewBigNum()
 
-    var ctx BNCtx = C.BN_CTX_new()
+    var ctx BNCtx = NewBNCtx()
     defer FreeBNCtx(ctx)
 
     result := C.BN_div(quotient, rem, numerator, divisor, ctx)
     if result != 1 {
-        panic("Invalid BigNum: Division Failed")
+        log.Print(NewOpenSSLError())
+        return nil, nil
     }
     return quotient, rem
 }
 
 func ModBN(numerator, divisor BigNum) BigNum {
-    var ctx BNCtx = C.BN_CTX_new()
+    var ctx BNCtx = NewBNCtx()
     defer FreeBNCtx(ctx)
 
     // C.BN_mod() is a macro for this.
     quotient, rem := DivBN(numerator, divisor)
+    if quotient == nil || rem == nil {
+        log.Print("ModBN use of DivBN Error")
+        return nil
+    }
     defer FreeBigNum(quotient)
 
     return rem
@@ -283,18 +326,29 @@ func ModBN(numerator, divisor BigNum) BigNum {
 
 func BNToDecStr(cBN BigNum) string {
     cString := C.BN_bn2dec(cBN)
+    if cString == nil {
+        log.Print(NewOpenSSLError())
+        return ""
+    }
     defer C.free(unsafe.Pointer(cString))
 
     return C.GoString(cString)
 }
 
+// RandRangeBN(max) generates a cryptographically strong pseudo-random
+// number, randBN, in the range 0 <= randBN < max.
+//
+// randBN must be freed later by the calling function.
+//
+// If there is an error then the error will be logged and nil will be returned.
 func RandRangeBN(max BigNum) BigNum {
-    // randBN must be freed later by the calling function.
     var randBN BigNum = NewBigNum()
 
     result := C.BN_rand_range(randBN, max)
     if result != 1 {
-        panic("Invalid BigNum: Random Range Failed")
+        // Invalid BigNum: Random Range Failed.
+        log.Print(NewOpenSSLError())
+        return nil
     }
     return randBN
 }
