@@ -21,8 +21,7 @@
 //
 // If there is an error then an OpenSSLError will be returned,
 // otherwise the functions will return a nil error.
-
-package crypto
+package openssl
 
 // #include "shim.h"
 import "C"

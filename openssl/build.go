@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with goUmbral. If not, see <https://www.gnu.org/licenses/>.
-package crypto
+package openssl
 
 // #cgo LDFLAGS: -lcrypto
 import "C"
