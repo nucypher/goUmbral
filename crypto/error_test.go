@@ -24,11 +24,17 @@ func TestError(t *testing.T) {
     bn1 := IntToBN(0)
     bn2 := IntToBN(5)
 
-    bn3 := SubBN(bn1, bn2)
+    bn3 := NewBigNum()
 
-    bn4 := RandRangeBN(bn3)
+    err := SubBN(bn3, bn1, bn2)
+    if err != nil {
+        t.Log(err)
+    }
 
-    if bn4 != nil {
-        t.Fail()
+    bn4 := NewBigNum()
+
+    err = RandRangeBN(bn4, bn3)
+    if err == nil {
+        t.Error("Should have returned error: 'OpenSSL FATAL Error: 307a073:bignum routines:BN_rand_range:invalid range'")
     }
 }

@@ -149,8 +149,16 @@ func TestBigIntToBigNumWithMul(t *testing.T) {
     defer FreeBigNum(cHugeboi)
 
     // Max int64 * 10
-    cBiggerboi := MulBN(cHugeboi, bigx)
+    cBiggerboi := NewBigNum()
     defer FreeBigNum(cBiggerboi)
+
+    ctx := NewBNCtx()
+    defer FreeBNCtx(ctx)
+
+    err := MulBN(cBiggerboi, cHugeboi, bigx, ctx)
+    if err != nil {
+        t.Error(err)
+    }
 
     biggerboi := hugeboi.Mul(hugeboi, x)
 
@@ -176,8 +184,13 @@ func TestRandomRange(t *testing.T) {
     defer FreeBigNum(cMax)
     defer FreeBigNum(cMin)
 
-    cRand := RandRangeBN(cMax)
+    cRand := NewBigNum()
     defer FreeBigNum(cRand)
+
+    err := RandRangeBN(cRand, cMax)
+    if err != nil {
+        t.Error(err)
+    }
 
     test1 := CmpBN(cMin, cRand)
     // The minimum is inclusive, so zero is possible to be equal to.

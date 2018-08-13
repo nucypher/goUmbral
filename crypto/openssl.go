@@ -103,7 +103,7 @@ func GetECOrderByGroup(group ECGroup) BigNum {
     // order must be freed later by the calling function.
     var order BigNum = NewBigNum()
 
-    var ctx BNCtx = C.BN_CTX_new()
+    var ctx BNCtx = NewBNCtx()
     defer FreeBNCtx(ctx)
 
     result := C.EC_GROUP_get_order(group, order, ctx)
@@ -146,7 +146,7 @@ func GetECPointFromAffine(affineX, affineY BigNum, curve Curve) ECPoint {
     // newPoint must be freed later by the calling function.
     var newPoint ECPoint = NewECPoint(curve)
 
-    var ctx BNCtx = C.BN_CTX_new()
+    var ctx BNCtx = NewBNCtx()
     defer FreeBNCtx(ctx)
 
     result := C.EC_POINT_set_affine_coordinates_GFp(
@@ -164,7 +164,7 @@ func GetAffineCoordsFromECPoint(point ECPoint, curve Curve) (BigNum, BigNum) {
     var affineX BigNum = NewBigNum()
     var affineY BigNum = NewBigNum()
 
-    var ctx BNCtx = C.BN_CTX_new()
+    var ctx BNCtx = NewBNCtx()
     defer FreeBNCtx(ctx)
 
     result := C.EC_POINT_get_affine_coordinates_GFp(
@@ -178,7 +178,7 @@ func GetAffineCoordsFromECPoint(point ECPoint, curve Curve) (BigNum, BigNum) {
 }
 
 func TmpBNMontCTX(modulus BigNum) BNMontCtx {
-    var ctx BNCtx = C.BN_CTX_new()
+    var ctx BNCtx = NewBNCtx()
     defer FreeBNCtx(ctx)
 
     // montCtx must be freed later by the calling function.
@@ -245,85 +245,6 @@ func BNToBytes(cBN BigNum) []byte {
     return bytes
 }
 
-func SizeOfBN(cBN BigNum) int {
-    // BN_num_bytes is a macro for this.
-    return int((C.BN_num_bits(cBN)+7)/8)
-}
-
-func CmpBN(cBN1, cBN2 BigNum) int {
-    return int(C.BN_cmp(cBN1, cBN2))
-}
-
-func MulBN(cBN1, cBN2 BigNum) BigNum {
-    // newBN must be freed later by the calling function.
-    var newBN BigNum = NewBigNum()
-
-    var ctx BNCtx = NewBNCtx()
-    defer FreeBNCtx(ctx)
-
-    result := int(C.BN_mul(newBN, cBN1, cBN2, ctx))
-    if result != 1 {
-        log.Print(NewOpenSSLError())
-        return nil
-    }
-    return newBN
-}
-
-func AddBN(cBN1, cBN2 BigNum) BigNum {
-    // newBN must be freed later by the calling function.
-    var newBN BigNum = NewBigNum()
-
-    result := C.BN_add(newBN, cBN1, cBN2)
-    if result != 1 {
-        log.Print(NewOpenSSLError())
-        return nil
-    }
-    return newBN
-}
-
-func SubBN(cBN1, cBN2 BigNum) BigNum {
-    // newBN must be freed later by the calling function.
-    var newBN BigNum = NewBigNum()
-
-    result := C.BN_sub(newBN, cBN1, cBN2)
-    if result != 1 {
-        log.Print(NewOpenSSLError())
-        return nil
-    }
-    return newBN
-}
-
-func DivBN(numerator, divisor BigNum) (BigNum, BigNum) {
-    // quotient and rem must be freed later by the calling function.
-    var quotient BigNum = NewBigNum()
-    var rem BigNum = NewBigNum()
-
-    var ctx BNCtx = NewBNCtx()
-    defer FreeBNCtx(ctx)
-
-    result := C.BN_div(quotient, rem, numerator, divisor, ctx)
-    if result != 1 {
-        log.Print(NewOpenSSLError())
-        return nil, nil
-    }
-    return quotient, rem
-}
-
-func ModBN(numerator, divisor BigNum) BigNum {
-    var ctx BNCtx = NewBNCtx()
-    defer FreeBNCtx(ctx)
-
-    // C.BN_mod() is a macro for this.
-    quotient, rem := DivBN(numerator, divisor)
-    if quotient == nil || rem == nil {
-        log.Print("ModBN use of DivBN Error")
-        return nil
-    }
-    defer FreeBigNum(quotient)
-
-    return rem
-}
-
 func BNToDecStr(cBN BigNum) string {
     cString := C.BN_bn2dec(cBN)
     if cString == nil {
@@ -333,22 +254,4 @@ func BNToDecStr(cBN BigNum) string {
     defer C.free(unsafe.Pointer(cString))
 
     return C.GoString(cString)
-}
-
-// RandRangeBN(max) generates a cryptographically strong pseudo-random
-// number, randBN, in the range 0 <= randBN < max.
-//
-// randBN must be freed later by the calling function.
-//
-// If there is an error then the error will be logged and nil will be returned.
-func RandRangeBN(max BigNum) BigNum {
-    var randBN BigNum = NewBigNum()
-
-    result := C.BN_rand_range(randBN, max)
-    if result != 1 {
-        // Invalid BigNum: Random Range Failed.
-        log.Print(NewOpenSSLError())
-        return nil
-    }
-    return randBN
 }
