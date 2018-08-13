@@ -161,3 +161,12 @@ func RandRangeBN(r, max BigNum) error {
     }
     return nil
 }
+
+// DupBN wraps BN_dup.
+func DupBN(from BigNum) (BigNum, error) {
+    var bn BigNum = C.BN_dup(from)
+    if bn == nil {
+        return nil, NewOpenSSLError()
+    }
+    return bn, nil
+}
