@@ -14,17 +14,15 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with goUmbral. If not, see <https://www.gnu.org/licenses/>.
-package umbral
+package math
 
-// #include "shim.h"
-import "C"
 import (
-    "unsafe"
     "errors"
     "math"
     "math/big"
     "encoding/binary"
     "golang.org/x/crypto/blake2b"
+    "github.com/nucypher/goUmbral/openssl"
 )
 
 /*
@@ -32,14 +30,14 @@ Represents an OpenSSL EC_POINT.
 */
 
 type Point struct {
-   ECPoint ECPoint
-   Curve Curve
+   ECPoint openssl.ECPoint
+   Curve *openssl.Curve
 }
 
-func GetNewPoint(point ECPoint, curve Curve) (Point, error) {
+func NewPoint(point openssl.ECPoint, curve *openssl.Curve) (*Point, error) {
     // Generate a new Point struct based on the arguments provided.
     //
-    // If point is nil then GetNewPoint will generate a new cryptographically secure
+    // If point is nil then GetNewPoint will generate a new opensslraphically secure
     // ECPoint and check for errors before returning the new Point.
     //
     // if point is nil AND the curve group is also nil then
@@ -48,14 +46,14 @@ func GetNewPoint(point ECPoint, curve Curve) (Point, error) {
     if point == nil {
         newPoint, err := GenRandPoint(curve)
         if err != nil {
-            return Point{}, err
+            return nil, err
         }
         return newPoint, err
     }
-    return Point{ECPoint: point, Curve: curve}, err
+    return &Point{point, curve}, err
 }
 
-func PointLength(curve Curve, isCompressed bool) uint {
+func PointLength(curve *openssl.Curve, isCompressed bool) uint {
     // Returns the size (in bytes) of a compressed Point given a curve.
     // If no curve is provided, it returns 0.
     if curve.Group == nil {
@@ -71,66 +69,78 @@ func PointLength(curve Curve, isCompressed bool) uint {
     }
 }
 
-func GenRandPoint(curve Curve) (Point, error) {
+func GenRandPoint(curve *openssl.Curve) (*Point, error) {
     // Returns a Point struct with a cryptographically
     // secure EC_POINT based on the provided curve.
-    randPoint, err := GetNewECPoint(curve)
+    randPoint, err := openssl.NewECPoint(curve)
     if err != nil {
-        return Point{}, err
+        return nil, err
     }
 
     randModBN, err := GenRandModBN(curve)
     if err != nil {
-        return Point{}, err
+        return nil, err
     }
     defer randModBN.Free()
 
-    ctx := C.BN_CTX_new()
-    defer FreeBNCTX(ctx)
+    ctx := openssl.NewBNCtx()
+    defer openssl.FreeBNCtx(ctx)
 
-    result := C.EC_POINT_mul(curve.Group, randPoint, (*C.BIGNUM)(C.NULL),
+    result := openssl.MulECP(curve.Group, randPoint, nil,
         curve.Generator, randModBN.Bignum, ctx)
-
-    if result != 1 {
-        return Point{}, errors.New("EC_POINT_mul failure")
+    if result != nil {
+        return nil, result
     }
 
-    return Point{ECPoint: randPoint, Curve: curve}, nil
+    return &Point{randPoint, curve}, nil
 }
 
-func Affine2Point(affineX, affineY *big.Int, curve Curve) (Point, error) {
+func Affine2Point(affineX, affineY *big.Int, curve *openssl.Curve) (*Point, error) {
     /*
     Returns a Point object from the given affine coordinates.
     */
-    x := BigIntToBN(affineX)
-    y := BigIntToBN(affineY)
-
-    point, err := GetECPointFromAffine(x, y, curve)
+    x, err := openssl.BigIntToBN(affineX)
     if err != nil {
-        return Point{}, err
+        return nil, err
+    }
+    y, err := openssl.BigIntToBN(affineY)
+    if err != nil {
+        return nil, err
     }
 
-    return Point{ECPoint: point, Curve: curve}, nil
+    point, err := openssl.GetECPointFromAffine(x, y, curve)
+    if err != nil {
+        return nil, err
+    }
+
+    return &Point{point, curve}, nil
 }
 
 func (m Point) ToAffine() (*big.Int, *big.Int, error) {
     /*
     Returns an x and y coordinate of the Point as a Go big.Int.
     */
-    xBN, yBN, err := GetAffineCoordsFromECPoint(m.ECPoint, m.Curve)
-    defer FreeBigNum(xBN)
-    defer FreeBigNum(yBN)
+    xBN, yBN, err := openssl.GetAffineCoordsFromECPoint(m.ECPoint, m.Curve)
     if err != nil {
         return nil, nil, err
     }
-    goX := BNToBigInt(xBN)
-    goY := BNToBigInt(yBN)
+    defer openssl.FreeBigNum(xBN)
+    defer openssl.FreeBigNum(yBN)
+
+    goX, err := openssl.BNToBigInt(xBN)
+    if err != nil {
+        return nil, nil, err
+    }
+    goY, err := openssl.BNToBigInt(yBN)
+    if err != nil {
+        return nil, nil, err
+    }
     return goX, goY, nil
 }
 
-func Bytes2Point(data []byte, curve Curve) (Point, error) {
+func Bytes2Point(data []byte, curve *openssl.Curve) (*Point, error) {
     if len(data) == 0 {
-        return Point{}, errors.New("No bytes failure")
+        return nil, errors.New("No bytes failure")
     }
 
     compressedSize := PointLength(curve, true)
@@ -138,28 +148,31 @@ func Bytes2Point(data []byte, curve Curve) (Point, error) {
     // Check if compressed
     if data[0] == 2 || data[0] == 3 {
         if uint(len(data)) != compressedSize {
-            return Point{}, errors.New("X coordinate too large for curve")
+            return nil, errors.New("X coordinate too large for curve")
         }
 
         // affineX might need to be freed.
-        affineX := BytesToBN(data[1:])
+        affineX, err := openssl.BytesToBN(data[1:])
+        if err != nil {
+            return nil, err
+        }
 
         typeY := data[0] - 2
 
-        point, err := GetNewECPoint(curve)
+        point, err := openssl.NewECPoint(curve)
         if err != nil {
-            return Point{}, err
+            return nil, err
         }
 
-        ctx := C.BN_CTX_new()
-        defer FreeBNCTX(ctx)
+        ctx := openssl.NewBNCtx()
+        defer openssl.FreeBNCtx(ctx)
 
-        result := C.EC_POINT_set_compressed_coordinates_GFp(
-            curve.Group, point, affineX, C.int(typeY), ctx)
-        if result != 1 {
-            return Point{}, errors.New("Compressed deserialization failure")
+        result := openssl.SetCompressedCoordsECP(
+            curve.Group, point, affineX, int(typeY), ctx)
+        if result != nil {
+            return nil, result
         }
-        return Point{point, curve}, nil
+        return &Point{point, curve}, nil
     } else if data[0] == 4 {
         // Handle uncompressed point
         coordSize := compressedSize - 1
@@ -167,7 +180,7 @@ func Bytes2Point(data []byte, curve Curve) (Point, error) {
         uncompressedSize := 1 + (2 * coordSize)
 
         if uint(len(data)) != uncompressedSize {
-            return Point{}, errors.New("Uncompressed point does not have right size")
+            return nil, errors.New("Uncompressed point does not have right size")
         }
         affineX := big.NewInt(0)
         affineY := big.NewInt(0)
@@ -177,7 +190,7 @@ func Bytes2Point(data []byte, curve Curve) (Point, error) {
 
         return Affine2Point(affineX, affineY, curve)
     } else {
-        return Point{}, errors.New("Invalid point serialization")
+        return nil, errors.New("Invalid point serialization")
     }
 }
 
@@ -204,14 +217,13 @@ func (m Point) ToBytes(isCompressed bool) ([]byte, error) {
     }
 }
 
-func GetGeneratorFromCurve(curve Curve) Point {
-    // DO NOT free both the generator and the curve.
+func GetGeneratorFromCurve(curve *openssl.Curve) *Point {
     // Consider making a copy of this point
     // so there are not any double frees.
-    return Point{curve.Generator, curve}
+    return &Point{curve.Generator, curve}
 }
 
-func (m Point) Equals(other Point) (bool, error) {
+func (m *Point) Equals(other *Point) (bool, error) {
     if m.ECPoint == nil || other.ECPoint == nil {
         return false, errors.New("One of the EC_POINTs was null")
     }
@@ -219,17 +231,17 @@ func (m Point) Equals(other Point) (bool, error) {
         return false, errors.New("The curve group is null")
     }
 
-    ctx := C.BN_CTX_new()
-    defer FreeBNCTX(ctx)
+    ctx := openssl.NewBNCtx()
+    defer openssl.FreeBNCtx(ctx)
 
-    result := C.EC_POINT_cmp(m.Curve.Group, m.ECPoint, other.ECPoint, ctx)
-    if result == -1 {
-        return false, errors.New("EC_POINT_cmp failure")
+    result, err := openssl.CmpECP(m.Curve.Group, m.ECPoint, other.ECPoint, ctx)
+    if err != nil {
+        return false, err
     }
-    return result == 0, nil
+    return result, nil
 }
 
-func (m *Point) Mul(scalar ModBigNum, point Point) error {
+func (m *Point) Mul(other *ModBigNum) error {
     /*
     Performs a EC_POINT_mul on an EC_POINT and a BIGNUM.
     */
@@ -238,35 +250,34 @@ func (m *Point) Mul(scalar ModBigNum, point Point) error {
         return errors.New("The points do not share the same curve.")
     }
 
-    ctx := C.BN_CTX_new()
-    defer FreeBNCTX(ctx)
+    ctx := openssl.NewBNCtx()
+    defer openssl.FreeBNCtx(ctx)
 
-    result := C.EC_POINT_mul(m.Curve.Group, m.ECPoint, (*C.BIGNUM)(C.NULL),
-        point.ECPoint, scalar.Bignum, ctx)
-    if result != 1 {
-        return errors.New("EC_POINT_mul failure")
+    result := openssl.MulECP(m.Curve.Group, m.ECPoint, nil,
+        m.ECPoint, other.Bignum, ctx)
+    if result != nil {
+        return result
     }
-
     return nil
 }
 
-func (m *Point) Add(p1, p2 Point) error {
+func (m *Point) Add(other *Point) error {
     // Performs an EC_POINT_add on two EC_POINTS.
 
-    ctx := C.BN_CTX_new()
-    defer FreeBNCTX(ctx)
+    ctx := openssl.NewBNCtx()
+    defer openssl.FreeBNCtx(ctx)
 
-    result := C.EC_POINT_add(m.Curve.Group, m.ECPoint, p1.ECPoint, p2.ECPoint, ctx)
-    if result != 1 {
-        return errors.New("EC_POINT_add failure")
+    result := openssl.AddECP(m.Curve.Group, m.ECPoint, m.ECPoint, other.ECPoint, ctx)
+    if result != nil {
+        return result
     }
 
     return nil
 }
 
-func (m *Point) Sub(p1, p2 Point) error {
-    // Performs a subtraction on two EC_POINTS by adding by the inverse.
-    inv, err := GetNewPoint(nil, m.Curve)
+func (m *Point) Sub(other *Point) error {
+    // Performs an subtraction on two EC_POINTS by adding by the inverse.
+    tmp, err := other.Copy()
     if err != nil {
         return err
     }
@@ -285,19 +296,13 @@ func (m *Point) Sub(p1, p2 Point) error {
     return nil
 }
 
-func (m *Point) Invert(point Point) error {
-    // Computes the additive inverse of a Point
-    ctx := C.BN_CTX_new()
-    defer FreeBNCTX(ctx)
+func (m *Point) Invert() error {
+    ctx := openssl.NewBNCtx()
+    defer openssl.FreeBNCtx(ctx)
 
-    inv, err := point.Copy()
-    if err != nil {
-        return err
-    }
-
-    result := C.EC_POINT_invert(m.Curve.Group, inv.ECPoint, ctx)
-    if result != 1 {
-        return errors.New("EC_POINT_invert failure")
+    result := openssl.InvertECP(m.Curve.Group, m.ECPoint, ctx)
+    if result != nil {
+        return result
     }
 
     // Swap ECPoints between m and inv
@@ -307,7 +312,7 @@ func (m *Point) Invert(point Point) error {
     return nil
 }
 
-func UnsafeHashToPoint(data []byte, params UmbralParameters, label []byte) (Point, error) {
+func UnsafeHashToPoint(data []byte, params *UmbralParameters, label []byte) (*Point, error) {
     // Hashes arbitrary data into a valid EC point of the specified curve,
     // using the try-and-increment method.
     // It admits an optional label as an additional input to the hash function.
@@ -368,21 +373,21 @@ func UnsafeHashToPoint(data []byte, params UmbralParameters, label []byte) (Poin
     }
 
     // Only happens with probability 2^(-32)
-    return Point{}, errors.New("Could not hash input into the curve")
+    return nil, errors.New("Could not hash input into the curve")
 }
 
-func (m Point) Copy() (Point, error) {
+func (m *Point) Copy() (*Point, error) {
     // Deep copy of a Point EXCLUDING the curve.
-    point := C.EC_POINT_dup(m.ECPoint, m.Curve.Group)
-    if unsafe.Pointer(point) == C.NULL {
-        return Point{}, errors.New("EC_POINT_dup failure")
+    point, err := openssl.DupECP(m.ECPoint, m.Curve.Group)
+    if err != nil {
+        return nil, err
     }
 
-    return Point{ECPoint: point, Curve: m.Curve}, nil
+    return &Point{point, m.Curve}, nil
 }
 
 func (m *Point) Free() {
-    FreeECPoint(m.ECPoint)
+    openssl.FreeECPoint(m.ECPoint)
     // Do not free the curve.
     // m.Curve.Free()
 }
