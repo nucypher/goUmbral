@@ -21,12 +21,18 @@ import (
 )
 
 func TestError(t *testing.T) {
-    bn1 := IntToBN(0)
-    bn2 := IntToBN(5)
+    bn1, err := IntToBN(0)
+    if err != nil {
+        t.Error(err)
+    }
+    bn2, err := IntToBN(5)
+    if err != nil {
+        t.Error(err)
+    }
 
     bn3 := NewBigNum()
 
-    err := SubBN(bn3, bn1, bn2)
+    err = SubBN(bn3, bn1, bn2)
     if err != nil {
         t.Log(err)
     }

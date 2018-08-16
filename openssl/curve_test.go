@@ -21,19 +21,19 @@ import (
 )
 
 func TestNewCurve(t *testing.T) {
-    curve, err := GetNewCurve(SECP256R1)
+    curve, err := NewCurve(SECP256R1)
     if err != nil {
         t.Error(err)
     }
     curve.Free()
 
-    curve, err = GetNewCurve(SECP256K1)
+    curve, err = NewCurve(SECP256K1)
     if err != nil {
         t.Error(err)
     }
     curve.Free()
 
-    curve, err = GetNewCurve(SECP384R1)
+    curve, err = NewCurve(SECP384R1)
     if err != nil {
         t.Error(err)
     }
@@ -41,13 +41,13 @@ func TestNewCurve(t *testing.T) {
 }
 
 func TestEqualCurves(t *testing.T) {
-    curve1, err1 := GetNewCurve(SECP256R1)
+    curve1, err1 := NewCurve(SECP256R1)
     if err1 != nil {
         t.Error(err1)
     }
     defer curve1.Free()
 
-    curve2, err2 := GetNewCurve(SECP256R1)
+    curve2, err2 := NewCurve(SECP256R1)
     if err2 != nil {
         t.Error(err2)
     }
@@ -62,7 +62,7 @@ func TestFree(t *testing.T) {
     // Stress test for memory leaks.
     // Leaks are more obvious when there is a lot of lost memory.
     for i := 0; i < 10000; i++ {
-        curve, err := GetNewCurve(SECP256K1)
+        curve, err := NewCurve(SECP256K1)
         if err != nil {
             t.Error(err)
         }

@@ -36,30 +36,39 @@ type Curve struct {
     Generator ECPoint
 }
 
-func GetNewCurve(nid C.int) (Curve, error) {
+func NewCurve(nid C.int) (*Curve, error) {
     // Do not use cast from an int to a C.int with an unsupported curve nid.
     // Use the constant curve values above instead.
 
     // Runtime check below just to be sure.
-    // Could default to a certain curve instead of closing.
+    // Could default to a certain curve instead of returning an error.
     switch nid {
     case SECP256R1:
     case SECP256K1:
     case SECP384R1:
     default:
-        return Curve{}, errors.New("This curve is not supported. Please use one of the constant curves defined in curve.go.")
+        return nil, errors.New("This curve is not supported. Please use one of the constant curves defined in curve.go.")
     }
-    var group ECGroup = GetECGroupByCurveNID(nid)
-    var order BigNum = GetECOrderByGroup(group)
-    var generator ECPoint = GetECGeneratorByGroup(group)
-    return Curve{NID: int(nid), Group: group, Order: order, Generator: generator}, nil
+    group, err := GetECGroupByCurveNID(nid)
+    if err != nil {
+        return nil, err
+    }
+    order, err := GetECOrderByGroup(group)
+    if err != nil {
+        return nil, err
+    }
+    generator, err := GetECGeneratorByGroup(group)
+    if err != nil {
+        return nil, err
+    }
+    return &Curve{int(nid), group, order, generator}, nil
 }
 
-func (m Curve) Equals(other Curve) bool {
+func (m *Curve) Equals(other *Curve) bool {
     return m.NID == other.NID
 }
 
-func (m Curve) FieldOrderSize() uint {
+func (m *Curve) FieldOrderSize() uint {
     bits := GetECGroupDegree(m.Group)
     return (bits + 7) / 8
 }

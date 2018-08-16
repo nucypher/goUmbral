@@ -103,7 +103,10 @@ func ModSubBN(r, a, b, m BigNum, ctx BNCtx) error {
 
 // ModExpMontBN wraps BN_mod_exp_mont.
 func ModExpMontBN(r, a, b, m BigNum, ctx BNCtx) error {
-    var montCtx BNMontCtx = TmpBNMontCTX(m)
+    montCtx, err := TmpBNMontCTX(m)
+    if err != nil {
+        return err
+    }
     defer FreeBNMontCtx(montCtx)
 
     result := C.BN_mod_exp_mont_consttime(r, a, b, m, ctx, montCtx)
@@ -133,7 +136,10 @@ func ModInvertBN(r, a, n BigNum, ctx BNCtx) error {
 
 // ModNegBN negates 'a' and places the result in 'r'.
 func ModNegBN(r, a, m BigNum, ctx BNCtx) error {
-    var zero BigNum = IntToBN(0)
+    zero, err := IntToBN(0)
+    if err != nil {
+        return err
+    }
     defer FreeBigNum(zero)
 
     result := C.BN_mod_sub(r, zero, a, m, ctx)

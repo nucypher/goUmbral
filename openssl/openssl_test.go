@@ -23,10 +23,16 @@ import (
 )
 
 func TestIntToBigNum(t *testing.T) {
-    bigboi1 := IntToBN(10)
+    bigboi1, err := IntToBN(10)
+    if err != nil {
+        t.Error(err)
+    }
     defer FreeBigNum(bigboi1)
 
-    bigboi2 := IntToBN(1000)
+    bigboi2, err := IntToBN(1000)
+    if err != nil {
+        t.Error(err)
+    }
     defer FreeBigNum(bigboi2)
 
     test1 := CmpBN(bigboi1, bigboi2)
@@ -38,7 +44,10 @@ func TestIntToBigNum(t *testing.T) {
             BNToDecStr(bigboi2))
     }
 
-    bigboi3 := IntToBN(10000)
+    bigboi3, err := IntToBN(10000)
+    if err != nil {
+        t.Error(err)
+    }
     defer FreeBigNum(bigboi3)
 
     test2 := CmpBN(bigboi2, bigboi3)
@@ -74,9 +83,18 @@ func TestBigIntToBigNumWithSmallInts(t *testing.T) {
     y := big.NewInt(100)
     z := big.NewInt(1000)
 
-    bigx := BigIntToBN(x)
-    bigy := BigIntToBN(y)
-    bigz := BigIntToBN(z)
+    bigx, err := BigIntToBN(x)
+    if err != nil {
+        t.Error(err)
+    }
+    bigy, err := BigIntToBN(y)
+    if err != nil {
+        t.Error(err)
+    }
+    bigz, err := BigIntToBN(z)
+    if err != nil {
+        t.Error(err)
+    }
 
     defer FreeBigNum(bigx)
     defer FreeBigNum(bigy)
@@ -126,7 +144,10 @@ func TestBigIntToBigNumWithSmallInts(t *testing.T) {
 
     // Test 5 should be an equal to comparison.
     x2 := big.NewInt(10)
-    bigx2 := BigIntToBN(x2)
+    bigx2, err := BigIntToBN(x2)
+    if err != nil {
+        t.Error(err)
+    }
     defer FreeBigNum(bigx2)
 
     test5 := CmpBN(bigx, bigx2)
@@ -141,11 +162,17 @@ func TestBigIntToBigNumWithSmallInts(t *testing.T) {
 
 func TestBigIntToBigNumWithMul(t *testing.T) {
     x := big.NewInt(10)
-    bigx := BigIntToBN(x)
+    bigx, err := BigIntToBN(x)
+    if err != nil {
+        t.Error(err)
+    }
     defer FreeBigNum(bigx)
 
     hugeboi := big.NewInt(math.MaxInt64)
-    cHugeboi := BigIntToBN(hugeboi)
+    cHugeboi, err := BigIntToBN(hugeboi)
+    if err != nil {
+        t.Error(err)
+    }
     defer FreeBigNum(cHugeboi)
 
     // Max int64 * 10
@@ -155,14 +182,17 @@ func TestBigIntToBigNumWithMul(t *testing.T) {
     ctx := NewBNCtx()
     defer FreeBNCtx(ctx)
 
-    err := MulBN(cBiggerboi, cHugeboi, bigx, ctx)
+    err = MulBN(cBiggerboi, cHugeboi, bigx, ctx)
     if err != nil {
         t.Error(err)
     }
 
     biggerboi := hugeboi.Mul(hugeboi, x)
 
-    biggerboiConverted := BigIntToBN(biggerboi)
+    biggerboiConverted, err := BigIntToBN(biggerboi)
+    if err != nil {
+        t.Error(err)
+    }
     defer FreeBigNum(biggerboiConverted)
 
     test1 := CmpBN(cBiggerboi, biggerboiConverted)
@@ -179,15 +209,21 @@ func TestRandomRange(t *testing.T) {
     max := big.NewInt(math.MaxInt64)
     min := big.NewInt(0)
 
-    cMax := BigIntToBN(max)
-    cMin := BigIntToBN(min)
+    cMax, err := BigIntToBN(max)
+    if err != nil {
+        t.Error(err)
+    }
+    cMin, err := BigIntToBN(min)
+    if err != nil {
+        t.Error(err)
+    }
     defer FreeBigNum(cMax)
     defer FreeBigNum(cMin)
 
     cRand := NewBigNum()
     defer FreeBigNum(cRand)
 
-    err := RandRangeBN(cRand, cMax)
+    err = RandRangeBN(cRand, cMax)
     if err != nil {
         t.Error(err)
     }

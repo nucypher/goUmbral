@@ -57,15 +57,14 @@ func NewBNMontCtx() BNMontCtx {
     return montCtx
 }
 
-func NewECPoint(curve Curve) ECPoint {
+func NewECPoint(curve Curve) (ECPoint, error) {
     // newPoint must be freed later by the calling function.
     newPoint := C.EC_POINT_new(curve.Group)
     if newPoint == nil {
         // Invalid Curve Group: New EC Point Failed.
-        log.Print(NewOpenSSLError())
-        return nil
+        return nil, NewOpenSSLError()
     }
-    return newPoint
+    return newPoint, nil
 }
 
 func FreeBigNum(bn BigNum) {
@@ -88,18 +87,17 @@ func FreeBNMontCtx(montCtx BNMontCtx) {
     C.BN_MONT_CTX_free(montCtx)
 }
 
-func GetECGroupByCurveNID(curveNid C.int) ECGroup {
+func GetECGroupByCurveNID(curveNid C.int) (ECGroup, error) {
     // curve must be freed later by the calling function.
     var curve ECGroup = C.EC_GROUP_new_by_curve_name(curveNid)
     if curve == nil {
         // Invalid Curve NID: Curve Group Lookup Failed.
-        log.Print(NewOpenSSLError())
-        return nil
+        return nil, NewOpenSSLError()
     }
-    return curve
+    return curve, nil
 }
 
-func GetECOrderByGroup(group ECGroup) BigNum {
+func GetECOrderByGroup(group ECGroup) (BigNum, error) {
     // order must be freed later by the calling function.
     var order BigNum = NewBigNum()
 
@@ -109,23 +107,21 @@ func GetECOrderByGroup(group ECGroup) BigNum {
     result := C.EC_GROUP_get_order(group, order, ctx)
     if result != 1 {
         // Invalid Group: Curve Order Lookup Failed.
-        log.Print(NewOpenSSLError())
-        return nil
+        return nil, NewOpenSSLError()
     }
-    return order
+    return order, nil
 }
 
-func GetECGeneratorByGroup(group ECGroup) ECPoint {
+func GetECGeneratorByGroup(group ECGroup) (ECPoint, error) {
     // generator should not be freed directly by the calling function.
     // Free the ECGroup instead.
     var generator ECPoint = C.EC_GROUP_get0_generator(group)
 
     if generator == nil {
         // Invalid Group: Generator Lookup Failed.
-        log.Print(NewOpenSSLError())
-        return nil
+        return nil, NewOpenSSLError()
     }
-    return generator
+    return generator, nil
 }
 
 func GetECGroupDegree(group ECGroup) uint {
@@ -133,7 +129,10 @@ func GetECGroupDegree(group ECGroup) uint {
 }
 
 func BNIsWithinOrder(checkBN BigNum, curve Curve) bool {
-    var zero BigNum = IntToBN(0)
+    zero, err := IntToBN(0)
+    if err != nil {
+        return false
+    }
     defer FreeBigNum(zero)
 
     checkSign := C.BN_cmp(checkBN, zero)
@@ -142,9 +141,12 @@ func BNIsWithinOrder(checkBN BigNum, curve Curve) bool {
     return checkSign == 1 && rangeCheck == -1
 }
 
-func GetECPointFromAffine(affineX, affineY BigNum, curve Curve) ECPoint {
+func GetECPointFromAffine(affineX, affineY BigNum, curve Curve) (ECPoint, error) {
     // newPoint must be freed later by the calling function.
-    var newPoint ECPoint = NewECPoint(curve)
+    newPoint, err := NewECPoint(curve)
+    if err != nil {
+        return nil, err
+    }
 
     var ctx BNCtx = NewBNCtx()
     defer FreeBNCtx(ctx)
@@ -153,13 +155,12 @@ func GetECPointFromAffine(affineX, affineY BigNum, curve Curve) ECPoint {
             curve.Group, newPoint, affineX, affineY, ctx)
     if result != 1 {
         // Invalid Affine or Curve: EC Point Lookup Failed.
-        log.Print(NewOpenSSLError())
-        return nil
+        return nil, NewOpenSSLError()
     }
-    return newPoint
+    return newPoint, nil
 }
 
-func GetAffineCoordsFromECPoint(point ECPoint, curve Curve) (BigNum, BigNum) {
+func GetAffineCoordsFromECPoint(point ECPoint, curve Curve) (BigNum, BigNum, error) {
     // affineX and affineY must be freed later by the calling function.
     var affineX BigNum = NewBigNum()
     var affineY BigNum = NewBigNum()
@@ -171,13 +172,12 @@ func GetAffineCoordsFromECPoint(point ECPoint, curve Curve) (BigNum, BigNum) {
             curve.Group, point, affineX, affineY, ctx)
     if result != 1 {
         // Invalid ECPoint or Curve: Affine Lookup Failed.
-        log.Print(NewOpenSSLError())
-        return nil, nil
+        return nil, nil, NewOpenSSLError()
     }
-    return affineX, affineY
+    return affineX, affineY, nil
 }
 
-func TmpBNMontCTX(modulus BigNum) BNMontCtx {
+func TmpBNMontCTX(modulus BigNum) (BNMontCtx, error) {
     var ctx BNCtx = NewBNCtx()
     defer FreeBNCtx(ctx)
 
@@ -187,27 +187,29 @@ func TmpBNMontCTX(modulus BigNum) BNMontCtx {
     result := C.BN_MONT_CTX_set(montCtx, modulus, ctx)
     if result != 1 {
         // Set Montgomery CTX With Modulus Failed.
-        log.Print(NewOpenSSLError())
-        return nil
+        return nil, NewOpenSSLError()
     }
-    return montCtx
+    return montCtx, nil
 }
 
-func IntToBN(sInt int) BigNum {
+func IntToBN(sInt int) (BigNum, error) {
     var bInt *big.Int = big.NewInt(int64(sInt))
     return BigIntToBN(bInt)
 }
 
-func BigIntToBN(bInt *big.Int) BigNum {
+func BigIntToBN(bInt *big.Int) (BigNum, error) {
     var goIntAsBytes []byte = bInt.Bytes()
     return BytesToBN(goIntAsBytes)
 }
 
-func BNToBigInt(bn BigNum) *big.Int {
-    var bytes []byte = BNToBytes(bn)
+func BNToBigInt(bn BigNum) (*big.Int, error) {
+    bytes, err := BNToBytes(bn)
+    if err != nil {
+        return nil, err
+    }
     var bInt *big.Int = big.NewInt(0)
     bInt.SetBytes(bytes)
-    return bInt
+    return bInt, nil
 }
 
 func BytesToBigInt(bytes []byte) *big.Int {
@@ -216,20 +218,19 @@ func BytesToBigInt(bytes []byte) *big.Int {
     return bInt
 }
 
-func BytesToBN(bytes []byte) BigNum {
+func BytesToBN(bytes []byte) (BigNum, error) {
     cBytes := C.CBytes(bytes)
     defer C.free(cBytes)
     // cBN must be freed later by the calling function.
     var cBN BigNum = C.BN_bin2bn((*C.uint8_t)(cBytes), C.int(len(bytes)), NewBigNum())
     if cBN == nil {
         // Deserialization Failed.
-        log.Print(NewOpenSSLError())
-        return nil
+        return nil, NewOpenSSLError()
     }
-    return cBN
+    return cBN, nil
 }
 
-func BNToBytes(cBN BigNum) []byte {
+func BNToBytes(cBN BigNum) ([]byte, error) {
     var size int = SizeOfBN(cBN)
     var space []byte = make([]byte, size)
     cSpace := C.CBytes(space)
@@ -238,11 +239,10 @@ func BNToBytes(cBN BigNum) []byte {
     var written C.int = C.BN_bn2bin(cBN, (*C.uint8_t)(cSpace))
     if int(written) != size {
         // Invalid Written Size: Serialization Failed.
-        log.Print(NewOpenSSLError())
-        return nil
+        return nil, NewOpenSSLError()
     }
     bytes := C.GoBytes(cSpace, written)
-    return bytes
+    return bytes, nil
 }
 
 func BNToDecStr(cBN BigNum) string {
