@@ -57,7 +57,7 @@ func NewBNMontCtx() BNMontCtx {
     return montCtx
 }
 
-func NewECPoint(curve Curve) (ECPoint, error) {
+func NewECPoint(curve *Curve) (ECPoint, error) {
     // newPoint must be freed later by the calling function.
     newPoint := C.EC_POINT_new(curve.Group)
     if newPoint == nil {
@@ -128,7 +128,7 @@ func GetECGroupDegree(group ECGroup) uint {
     return uint(C.EC_GROUP_get_degree(group))
 }
 
-func BNIsWithinOrder(checkBN BigNum, curve Curve) bool {
+func BNIsWithinOrder(checkBN BigNum, curve *Curve) bool {
     zero, err := IntToBN(0)
     if err != nil {
         return false
@@ -141,7 +141,7 @@ func BNIsWithinOrder(checkBN BigNum, curve Curve) bool {
     return checkSign == 1 && rangeCheck == -1
 }
 
-func GetECPointFromAffine(affineX, affineY BigNum, curve Curve) (ECPoint, error) {
+func GetECPointFromAffine(affineX, affineY BigNum, curve *Curve) (ECPoint, error) {
     // newPoint must be freed later by the calling function.
     newPoint, err := NewECPoint(curve)
     if err != nil {
@@ -160,7 +160,7 @@ func GetECPointFromAffine(affineX, affineY BigNum, curve Curve) (ECPoint, error)
     return newPoint, nil
 }
 
-func GetAffineCoordsFromECPoint(point ECPoint, curve Curve) (BigNum, BigNum, error) {
+func GetAffineCoordsFromECPoint(point ECPoint, curve *Curve) (BigNum, BigNum, error) {
     // affineX and affineY must be freed later by the calling function.
     var affineX BigNum = NewBigNum()
     var affineY BigNum = NewBigNum()

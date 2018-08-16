@@ -176,3 +176,51 @@ func DupBN(from BigNum) (BigNum, error) {
     }
     return bn, nil
 }
+
+func CmpECP(group ECGroup, a, b ECPoint, ctx BNCtx) (bool, error) {
+    result := C.EC_POINT_cmp(group, a, b, ctx)
+    if result != -1 {
+        return false, NewOpenSSLError()
+    }
+    return result == 0, nil
+}
+
+func AddECP(group ECGroup, r, a, b ECPoint, ctx BNCtx) error {
+    result := C.EC_POINT_add(group, r, a, b, ctx)
+    if result != 1 {
+        return NewOpenSSLError()
+    }
+    return nil
+}
+
+func MulECP(group ECGroup, r ECPoint, n BigNum, q ECPoint, m BigNum, ctx BNCtx) error {
+    result := C.EC_POINT_mul(group, r, n, q, m, ctx)
+    if result != 1 {
+        return NewOpenSSLError()
+    }
+    return nil
+}
+
+func InvertECP(group ECGroup, a ECPoint, ctx BNCtx) error {
+    result := C.EC_POINT_invert(group, a, ctx)
+    if result != 1 {
+        return NewOpenSSLError()
+    }
+    return nil
+}
+
+func SetCompressedCoordsECP(group ECGroup, p ECPoint, x BigNum, yBit int, ctx BNCtx) error {
+    result := C.EC_POINT_set_compressed_coordinates_GFp(group, p, x, C.int(yBit), ctx)
+    if result != 1 {
+        return NewOpenSSLError()
+    }
+    return nil
+}
+
+func DupECP(src ECPoint, group ECGroup) (ECPoint, error) {
+    var p ECPoint = C.EC_POINT_dup(src, group)
+    if p == nil {
+        return nil, NewOpenSSLError()
+    }
+    return p, nil
+}
