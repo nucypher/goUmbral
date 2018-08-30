@@ -21,7 +21,8 @@ import (
     "encoding/json"
     "encoding/hex"
     "io/ioutil"
-    "github.com/nucypher/goUmbral/umbral"
+    "github.com/nucypher/goUmbral/math"
+    "github.com/nucypher/goUmbral/openssl"
 )
 
 type PointOps struct {
@@ -63,7 +64,7 @@ func TestPointOperations(t *testing.T) {
         t.Error(err)
     }
 
-    curve, err := umbral.GetNewCurve(umbral.SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
@@ -84,19 +85,19 @@ func TestPointOperations(t *testing.T) {
         t.Error(err)
     }
 
-    point1, err := umbral.Bytes2Point(first, curve)
+    point1, err := math.Bytes2Point(first, curve)
     if err != nil {
         t.Error(err)
     }
     defer point1.Free()
 
-    point2, err := umbral.Bytes2Point(second, curve)
+    point2, err := math.Bytes2Point(second, curve)
     if err != nil {
         t.Error(err)
     }
     defer point2.Free()
 
-    modbn, err := umbral.Bytes2ModBN(third, curve)
+    modbn, err := math.BytesToModBN(third, curve)
     if err != nil {
         t.Error(err)
     }
@@ -129,7 +130,7 @@ func TestPointOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            point3, err := umbral.Bytes2Point(tmp3, curve)
+            point3, err := math.Bytes2Point(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
@@ -154,7 +155,7 @@ func TestPointOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            point3, err := umbral.Bytes2Point(tmp3, curve)
+            point3, err := math.Bytes2Point(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
@@ -179,7 +180,7 @@ func TestPointOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            point3, err := umbral.Bytes2Point(tmp3, curve)
+            point3, err := math.Bytes2Point(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
@@ -204,7 +205,7 @@ func TestPointOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            point3, err := umbral.Bytes2Point(tmp3, curve)
+            point3, err := math.Bytes2Point(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
@@ -229,7 +230,7 @@ func TestPointOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            xRes := umbral.BytesToBigInt(tmp3)
+            xRes := openssl.BytesToBigInt(tmp3)
 
             res := x.Cmp(xRes)
             if res != 0 {
@@ -246,7 +247,7 @@ func TestPointOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            yRes := umbral.BytesToBigInt(tmp3)
+            yRes := openssl.BytesToBigInt(tmp3)
 
             res := y.Cmp(yRes)
             if res != 0 {
@@ -271,13 +272,13 @@ func TestUnsafeHashToPoint(t *testing.T) {
         t.Error(err)
     }
 
-    curve, err := umbral.GetNewCurve(umbral.SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
     defer curve.Free()
 
-    params, err := umbral.GetNewUmbralParameters(curve)
+    params, err := math.NewUmbralParameters(curve)
     if err != nil {
         t.Error(err)
     }
@@ -293,7 +294,7 @@ func TestUnsafeHashToPoint(t *testing.T) {
             t.Error(err)
         }
 
-        point1, err := umbral.UnsafeHashToPoint(data, params, label)
+        point1, err := math.UnsafeHashToPoint(data, params, label)
         if err != nil {
             t.Error(err)
         }
@@ -303,7 +304,7 @@ func TestUnsafeHashToPoint(t *testing.T) {
             t.Error(err)
         }
 
-        point2, err := umbral.Bytes2Point(tmp1, curve)
+        point2, err := math.Bytes2Point(tmp1, curve)
         if err != nil {
             t.Error(err)
         }

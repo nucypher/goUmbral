@@ -27,7 +27,7 @@ type UmbralParameters struct {
     U *Point
 }
 
-func NewParameters(curve *openssl.Curve) (*UmbralParameters, error) {
+func NewUmbralParameters(curve *openssl.Curve) (*UmbralParameters, error) {
     var params UmbralParameters
     params.Curve = curve
     params.Size = curve.FieldOrderSize()

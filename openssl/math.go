@@ -179,7 +179,7 @@ func DupBN(from BigNum) (BigNum, error) {
 
 func CmpECP(group ECGroup, a, b ECPoint, ctx BNCtx) (bool, error) {
     result := C.EC_POINT_cmp(group, a, b, ctx)
-    if result != -1 {
+    if result == -1 {
         return false, NewOpenSSLError()
     }
     return result == 0, nil

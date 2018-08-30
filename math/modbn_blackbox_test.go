@@ -21,7 +21,8 @@ import (
     "encoding/json"
     "encoding/hex"
     "io/ioutil"
-    "github.com/nucypher/goUmbral/umbral"
+    "github.com/nucypher/goUmbral/math"
+    "github.com/nucypher/goUmbral/openssl"
 )
 
 type ModBNOps struct {
@@ -61,7 +62,7 @@ func TestModBNOperations(t *testing.T) {
         t.Error(err)
     }
 
-    curve, err := umbral.GetNewCurve(umbral.SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
@@ -77,13 +78,13 @@ func TestModBNOperations(t *testing.T) {
         t.Error(err)
     }
 
-    modbn1, err := umbral.Bytes2ModBN(first, curve)
+    modbn1, err := math.BytesToModBN(first, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn1.Free()
 
-    modbn2, err := umbral.Bytes2ModBN(second, curve)
+    modbn2, err := math.BytesToModBN(second, curve)
     if err != nil {
         t.Error(err)
     }
@@ -112,7 +113,7 @@ func TestModBNOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            modbn3, err := umbral.Bytes2ModBN(tmp3, curve)
+            modbn3, err := math.BytesToModBN(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
@@ -132,7 +133,7 @@ func TestModBNOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            modbn3, err := umbral.Bytes2ModBN(tmp3, curve)
+            modbn3, err := math.BytesToModBN(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
@@ -152,7 +153,7 @@ func TestModBNOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            modbn3, err := umbral.Bytes2ModBN(tmp3, curve)
+            modbn3, err := math.BytesToModBN(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
@@ -172,7 +173,7 @@ func TestModBNOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            modbn3, err := umbral.Bytes2ModBN(tmp3, curve)
+            modbn3, err := math.BytesToModBN(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
@@ -192,7 +193,7 @@ func TestModBNOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            modbn3, err := umbral.Bytes2ModBN(tmp3, curve)
+            modbn3, err := math.BytesToModBN(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
@@ -212,7 +213,7 @@ func TestModBNOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            modbn3, err := umbral.Bytes2ModBN(tmp3, curve)
+            modbn3, err := math.BytesToModBN(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
@@ -232,7 +233,7 @@ func TestModBNOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            modbn3, err := umbral.Bytes2ModBN(tmp3, curve)
+            modbn3, err := math.BytesToModBN(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
@@ -260,13 +261,13 @@ func TestHash2ModBN(t *testing.T) {
         t.Error(err)
     }
 
-    curve, err := umbral.GetNewCurve(umbral.SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
     defer curve.Free()
 
-    params, err := umbral.GetNewUmbralParameters(curve)
+    params, err := math.NewUmbralParameters(curve)
     if err != nil {
         t.Error(err)
     }
@@ -281,7 +282,7 @@ func TestHash2ModBN(t *testing.T) {
             data = append(data, bytes...)
         }
 
-        modbn1, err := umbral.Hash2ModBN(data, params)
+        modbn1, err := math.HashToModBN(data, params)
         if err != nil {
             t.Error(err)
         }
@@ -292,7 +293,7 @@ func TestHash2ModBN(t *testing.T) {
             t.Error(err)
         }
 
-        modbn2, err := umbral.Bytes2ModBN(tmp1, curve)
+        modbn2, err := math.BytesToModBN(tmp1, curve)
         if err != nil {
             t.Error(err)
         }

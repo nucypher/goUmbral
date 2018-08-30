@@ -22,58 +22,76 @@ import (
     "encoding/binary"
     "testing"
     "math"
+    "github.com/nucypher/goUmbral/openssl"
 )
 
 func TestNewModBN(t *testing.T) {
     t.Run("bn=5", func(t *testing.T) {
-        curve, err := GetNewCurve(SECP256R1)
+        curve, err := openssl.NewCurve(openssl.SECP256R1)
         if err != nil {
             t.Error(err)
         }
         defer curve.Free()
 
-        bn := IntToBN(5)
+        bn, err := openssl.IntToBN(5)
+        if err != nil {
+            t.Error(err)
+        }
         // Should succeed.
-        modbn, err := GetNewModBN(bn, curve)
+        modbn, err := NewModBigNum(bn, curve)
         if err != nil {
             t.Error(err)
         }
         modbn.Free()
     })
     t.Run("bn=-10", func(t *testing.T) {
-        curve, err := GetNewCurve(SECP256R1)
+        curve, err := openssl.NewCurve(openssl.SECP256R1)
         if err != nil {
             t.Error(err)
         }
         defer curve.Free()
 
         // IntToBN is unsigned.
-        onebn := IntToBN(1)
-        defer FreeBigNum(onebn)
+        onebn, err := openssl.IntToBN(1)
+        if err != nil {
+            t.Error(err)
+        }
+        defer openssl.FreeBigNum(onebn)
 
-        tenbn := IntToBN(10)
-        defer FreeBigNum(tenbn)
+        tenbn, err := openssl.IntToBN(10)
+        if err != nil {
+            t.Error(err)
+        }
+        defer openssl.FreeBigNum(tenbn)
 
-        negbn := SubBN(onebn, tenbn)
+        negbn := openssl.NewBigNum()
+
+        err = openssl.SubBN(negbn, onebn, tenbn)
+        if err != nil {
+            t.Error(err)
+        }
 
         // Should fail.
-        modbn, err := GetNewModBN(negbn, curve)
+        modbn, err := NewModBigNum(negbn, curve)
         if err == nil {
             t.Error("A negative bignum should not be within the order of the curve")
         }
-        modbn.Free()
+        defer modbn.Free()
     })
 }
 
 func TestGenRandBN(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
     defer curve.Free()
 
-    one := IntToBN(1)
-    defer FreeBigNum(one)
+    one, err := openssl.IntToBN(1)
+    if err != nil {
+        t.Error(err)
+    }
+    defer openssl.FreeBigNum(one)
 
     for i := 0; i < 1000; i++ {
         rand, err := GenRandModBN(curve)
@@ -83,28 +101,28 @@ func TestGenRandBN(t *testing.T) {
         defer rand.Free()
 
         // rand should always be between 1 inclusive and order exclusive
-        min := CompareBN(one, rand.Bignum)
-        max := CompareBN(rand.Bignum, curve.Order)
+        min := openssl.CmpBN(one, rand.Bignum)
+        max := openssl.CmpBN(rand.Bignum, curve.Order)
 
         if min > 0 || max >= 0 {
             t.Error("Got:",
                 min, max,
                 "Expecting: -1 or 0, -1",
-                BNToDecStr(one),
-                BNToDecStr(rand.Bignum),
-                BNToDecStr(curve.Order))
+                openssl.BNToDecStr(one),
+                openssl.BNToDecStr(rand.Bignum),
+                openssl.BNToDecStr(curve.Order))
         }
     }
 }
 
-func TestInt2ModBN(t *testing.T) {
-    curve, err := GetNewCurve(SECP384R1)
+func TestIntToModBN(t *testing.T) {
+    curve, err := openssl.NewCurve(openssl.SECP384R1)
     if err != nil {
         t.Error(err)
     }
     defer curve.Free()
 
-    modbn, err := Int2ModBN(10, curve)
+    modbn, err := IntToModBN(10, curve)
     if err != nil {
         t.Error(err)
     }
@@ -118,19 +136,19 @@ func TestHash2BN(t *testing.T) {
         binary.BigEndian.PutUint32(bs, 999111777)
 
         // Get the curve.
-        curve, err := GetNewCurve(SECP256K1)
+        curve, err := openssl.NewCurve(openssl.SECP256K1)
         if err != nil {
             t.Error(err)
         }
         defer curve.Free()
 
-        params, err := GetNewUmbralParameters(curve)
+        params, err := NewUmbralParameters(curve)
         if err != nil {
             t.Error(err)
         }
 
         // Convert to BN with Hash2BN.
-        modbn, err := Hash2ModBN(bs, params)
+        modbn, err := HashToModBN(bs, params)
         if err != nil {
             t.Error(err)
         }
@@ -143,7 +161,11 @@ func TestHash2BN(t *testing.T) {
 
         // Convert the order to Go big.Int.
         goOrder := big.NewInt(0)
-        goOrder.SetBytes(BNToBytes(curve.Order))
+        res, err := openssl.BNToBytes(curve.Order)
+        if err != nil {
+            t.Error(err)
+        }
+        goOrder.SetBytes(res)
 
         // Subtract one from the order of the curve.
         goOrder.Sub(goOrder, big.NewInt(1))
@@ -154,11 +176,14 @@ func TestHash2BN(t *testing.T) {
         // Add one
         goBN.Add(goBN, big.NewInt(1))
 
-        newBN := BigIntToBN(goBN)
-        defer FreeBigNum(newBN)
+        newBN, err := openssl.BigIntToBN(goBN)
+        if err != nil {
+            t.Error(err)
+        }
+        defer openssl.FreeBigNum(newBN)
 
         // newBN and bn should be equal
-        result := CompareBN(newBN, modbn.Bignum)
+        result := openssl.CmpBN(newBN, modbn.Bignum)
 
         if result != 0 {
             t.Error("The two hashed and modded bn's were not the same:", result)
@@ -168,18 +193,18 @@ func TestHash2BN(t *testing.T) {
     t.Run("bs=0", func(t *testing.T) {
         // Test an empty byte array.
         var bs []byte
-        curve, err := GetNewCurve(SECP256K1)
+        curve, err := openssl.NewCurve(openssl.SECP256K1)
         if err != nil {
             t.Error(err)
         }
         defer curve.Free()
 
-        params, err := GetNewUmbralParameters(curve)
+        params, err := NewUmbralParameters(curve)
         if err != nil {
             t.Error(err)
         }
 
-        modbn, err := Hash2ModBN(bs, params)
+        modbn, err := HashToModBN(bs, params)
         if err != nil {
             t.Error(err)
         }
@@ -192,19 +217,19 @@ func TestHash2BN(t *testing.T) {
         bs := make([]byte, math.MaxInt16)
         bs[127] = byte(42)
         bs[100] = byte(52)
-        curve, err := GetNewCurve(SECP384R1)
+        curve, err := openssl.NewCurve(openssl.SECP384R1)
         if err != nil {
             t.Error(err)
         }
         defer curve.Free()
 
-        params, err := GetNewUmbralParameters(curve)
+        params, err := NewUmbralParameters(curve)
         if err != nil {
             t.Error(err)
         }
 
         // Convert to BN with Hash2BN.
-        modbn, err := Hash2ModBN(bs, params)
+        modbn, err := HashToModBN(bs, params)
         if err != nil {
             t.Error(err)
         }
@@ -217,13 +242,13 @@ func TestBytesToModBN(t *testing.T) {
         bs := make([]byte, 4)
         binary.BigEndian.PutUint32(bs, 999111777)
 
-        curve, err := GetNewCurve(SECP256K1)
+        curve, err := openssl.NewCurve(openssl.SECP256K1)
         if err != nil {
             t.Error(err)
         }
         defer curve.Free()
 
-        modbn, err := Bytes2ModBN(bs, curve)
+        modbn, err := BytesToModBN(bs, curve)
         if err != nil {
             t.Error(err)
         }
@@ -232,13 +257,13 @@ func TestBytesToModBN(t *testing.T) {
 
     t.Run("empty", func(t *testing.T) {
         var bs []byte
-        curve, err := GetNewCurve(SECP256K1)
+        curve, err := openssl.NewCurve(openssl.SECP256K1)
         if err != nil {
             t.Error(err)
         }
         defer curve.Free()
 
-        modbn, err := Bytes2ModBN(bs, curve)
+        modbn, err := BytesToModBN(bs, curve)
         if err == nil {
             t.Error("An empty byte array returned a valid bignum.")
         }
@@ -247,19 +272,24 @@ func TestBytesToModBN(t *testing.T) {
 }
 
 func TestBytesToBytesModBN(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
     defer curve.Free()
 
-    modbn, err := Int2ModBN(19, curve)
+    modbn, err := IntToModBN(19, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn.Free()
 
-    newmodbn, err := Bytes2ModBN(modbn.ToBytes(), curve)
+    bytes, err := modbn.Bytes()
+    if err != nil {
+        t.Error(err)
+    }
+
+    newmodbn, err := BytesToModBN(bytes, curve)
     if err != nil {
         t.Error(err)
     }
@@ -271,31 +301,31 @@ func TestBytesToBytesModBN(t *testing.T) {
 }
 
 func TestEquals(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
     defer curve.Free()
 
-    modbn1, err := Int2ModBN(5, curve)
+    modbn1, err := IntToModBN(5, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn1.Free()
 
-    modbn2, err := Int2ModBN(5, curve)
+    modbn2, err := IntToModBN(5, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn2.Free()
 
-    modbn3, err := Int2ModBN(10, curve)
+    modbn3, err := IntToModBN(10, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn3.Free()
 
-    modbn4, err := Int2ModBN(3, curve)
+    modbn4, err := IntToModBN(3, curve)
     if err != nil {
         t.Error(err)
     }
@@ -315,31 +345,31 @@ func TestEquals(t *testing.T) {
 }
 
 func TestCompare(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
     defer curve.Free()
 
-    modbn1, err := Int2ModBN(5, curve)
+    modbn1, err := IntToModBN(5, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn1.Free()
 
-    modbn2, err := Int2ModBN(5, curve)
+    modbn2, err := IntToModBN(5, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn2.Free()
 
-    modbn3, err := Int2ModBN(10, curve)
+    modbn3, err := IntToModBN(10, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn3.Free()
 
-    modbn4, err := Int2ModBN(3, curve)
+    modbn4, err := IntToModBN(3, curve)
     if err != nil {
         t.Error(err)
     }
@@ -360,19 +390,19 @@ func TestCompare(t *testing.T) {
 
 func TestPow(t *testing.T) {
     t.Run("small powers", func(t *testing.T) {
-        curve, err := GetNewCurve(SECP256K1)
+        curve, err := openssl.NewCurve(openssl.SECP256K1)
         if err != nil {
             t.Error(err)
         }
         defer curve.Free()
 
-        modbn1, err := Int2ModBN(2, curve)
+        modbn1, err := IntToModBN(2, curve)
         if err != nil {
             t.Error(err)
         }
         defer modbn1.Free()
 
-        modbn2, err := Int2ModBN(5, curve)
+        modbn2, err := IntToModBN(5, curve)
         if err != nil {
             t.Error(err)
         }
@@ -385,22 +415,28 @@ func TestPow(t *testing.T) {
         defer power.Free()
 
         // 2^5 % curve.Order
-        err = power.Pow(modbn1, modbn2)
+        err = modbn1.Pow(modbn1, modbn2)
         if err != nil {
             t.Error(err)
         }
 
-        t.Log(BNToDecStr(power.Bignum))
+        t.Log(openssl.BNToDecStr(modbn1.Bignum))
 
         goBN1 := big.NewInt(2)
         goBN2 := big.NewInt(5)
-        bytes := BNToBytes(curve.Order)
+        bytes, err := openssl.BNToBytes(curve.Order)
+        if err != nil {
+            t.Error(err)
+        }
         var order *big.Int = big.NewInt(0)
         order.SetBytes(bytes)
         goBN1.Exp(goBN1, goBN2, order)
 
-        bn := BigIntToBN(goBN1)
-        modbn3, err := GetNewModBN(bn, curve)
+        bn, err := openssl.BigIntToBN(goBN1)
+        if err != nil {
+            t.Error(err)
+        }
+        modbn3, err := NewModBigNum(bn, curve)
         if err != nil {
             t.Error(err)
         }
@@ -411,47 +447,47 @@ func TestPow(t *testing.T) {
         }
     })
     t.Run("big powers", func(t *testing.T) {
-        curve, err := GetNewCurve(SECP256K1)
+        curve, err := openssl.NewCurve(openssl.SECP256K1)
         if err != nil {
             t.Error(err)
         }
         defer curve.Free()
 
-        modbn1, err := Int2ModBN(2, curve)
+        modbn1, err := IntToModBN(2, curve)
         if err != nil {
             t.Error(err)
         }
         defer modbn1.Free()
 
-        modbn2, err := Int2ModBN(300, curve)
+        modbn2, err := IntToModBN(300, curve)
         if err != nil {
             t.Error(err)
         }
         defer modbn2.Free()
 
-        power, err := GetNewModBN(nil, curve)
-        if err != nil {
-            t.Error(err)
-        }
-        defer power.Free()
-
-        // 2^300 % curve.Order
-        err = power.Pow(modbn1, modbn2)
+        // 2^5 % curve.Order
+        err = modbn1.Pow(modbn1, modbn2)
         if err != nil {
             t.Error(err)
         }
 
-        t.Log(BNToDecStr(power.Bignum))
+        t.Log(openssl.BNToDecStr(modbn1.Bignum))
 
         goBN1 := big.NewInt(2)
         goBN2 := big.NewInt(300)
-        bytes := BNToBytes(curve.Order)
+        bytes, err := openssl.BNToBytes(curve.Order)
+
         var order *big.Int = big.NewInt(0)
         order.SetBytes(bytes)
         goBN1.Exp(goBN1, goBN2, order)
-
-        bn := BigIntToBN(goBN1)
-        modbn3, err := GetNewModBN(bn, curve)
+        if err != nil {
+            t.Error(err)
+        }
+        bn, err := openssl.BigIntToBN(goBN1)
+        if err != nil {
+            t.Error(err)
+        }
+        modbn3, err := NewModBigNum(bn, curve)
         if err != nil {
             t.Error(err)
         }
@@ -464,37 +500,31 @@ func TestPow(t *testing.T) {
 }
 
 func TestMul(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
     defer curve.Free()
 
-    modbn1, err := Int2ModBN(2, curve)
+    modbn1, err := IntToModBN(2, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn1.Free()
 
-    modbn2, err := Int2ModBN(300, curve)
+    modbn2, err := IntToModBN(300, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn2.Free()
 
-    product, err := GetNewModBN(nil, curve)
-    if err != nil {
-        t.Error(err)
-    }
-    defer product.Free()
-
-    // 2*300 % curve.Order
-    err = product.Mul(modbn1, modbn2)
+    // 2^5 % curve.Order
+    err = modbn1.Mul(modbn1, modbn2)
     if err != nil {
         t.Error(err)
     }
 
-    modbn3, err := Int2ModBN(600, curve)
+    modbn3, err := IntToModBN(600, curve)
     if err != nil {
         t.Error(err)
     }
@@ -506,67 +536,55 @@ func TestMul(t *testing.T) {
 }
 
 func TestDiv(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
     defer curve.Free()
 
-    modbn1, err := Int2ModBN(568, curve)
+    modbn1, err := IntToModBN(568, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn1.Free()
 
-    modbn2, err := Int2ModBN(32, curve)
+    modbn2, err := IntToModBN(32, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn2.Free()
 
-    quotient, err := GetNewModBN(nil, curve)
-    if err != nil {
-        t.Error(err)
-    }
-    defer quotient.Free()
-
-    err = quotient.Div(modbn1, modbn2)
+    err = modbn1.Div(modbn1, modbn2)
     if err != nil {
         t.Error(err)
     }
 }
 
 func TestAdd(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
     defer curve.Free()
 
-    modbn1, err := Int2ModBN(256, curve)
+    modbn1, err := IntToModBN(256, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn1.Free()
 
-    modbn2, err := Int2ModBN(512, curve)
+    modbn2, err := IntToModBN(512, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn2.Free()
 
-    sum, err := GetNewModBN(nil, curve)
-    if err != nil {
-        t.Error(err)
-    }
-    defer sum.Free()
-
-    err = sum.Add(modbn1, modbn2)
+    err = modbn1.Add(modbn1, modbn2)
     if err != nil {
         t.Error(err)
     }
 
-    modbn3, err := Int2ModBN(768, curve)
+    modbn3, err := IntToModBN(768, curve)
     if err != nil {
         t.Error(err)
     }
@@ -578,36 +596,30 @@ func TestAdd(t *testing.T) {
 }
 
 func TestSub(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
     defer curve.Free()
 
-    modbn1, err := Int2ModBN(512, curve)
+    modbn1, err := IntToModBN(512, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn1.Free()
 
-    modbn2, err := Int2ModBN(256, curve)
+    modbn2, err := IntToModBN(256, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn2.Free()
 
-    diff, err := GetNewModBN(nil, curve)
-    if err != nil {
-        t.Error(err)
-    }
-    defer diff.Free()
-
-    err = diff.Sub(modbn1, modbn2)
+    err = modbn1.Sub(modbn1, modbn2)
     if err != nil {
         t.Error(err)
     }
 
-    modbn3, err := Int2ModBN(256, curve)
+    modbn3, err := IntToModBN(256, curve)
     if err != nil {
         t.Error(err)
     }
@@ -619,81 +631,44 @@ func TestSub(t *testing.T) {
 }
 
 func TestInverse(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
     defer curve.Free()
 
-    modbn, err := Int2ModBN(512, curve)
+    modbn, err := IntToModBN(512, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn.Free()
 
-    inv, err := GetNewModBN(nil, curve)
-    if err != nil {
-        t.Error(err)
-    }
-    defer inv.Free()
-
-    err = inv.Invert(modbn)
-    if err != nil {
-        t.Error(err)
-    }
-}
-
-func TestNeg(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
-    if err != nil {
-        t.Error(err)
-    }
-    defer curve.Free()
-
-    modbn, err := Int2ModBN(512, curve)
-    if err != nil {
-        t.Error(err)
-    }
-    defer modbn.Free()
-
-    neg, err := GetNewModBN(nil, curve)
-    if err != nil {
-        t.Error(err)
-    }
-    defer neg.Free()
-
-    err = neg.Neg(modbn)
+    err = modbn.Invert(modbn)
     if err != nil {
         t.Error(err)
     }
 }
 
 func TestMod(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
     defer curve.Free()
 
-    modbn1, err := Int2ModBN(768, curve)
+    modbn1, err := IntToModBN(768, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn1.Free()
 
-    modbn2, err := Int2ModBN(512, curve)
+    modbn2, err := IntToModBN(512, curve)
     if err != nil {
         t.Error(err)
     }
     defer modbn2.Free()
 
-    remainder, err := GetNewModBN(nil, curve)
-    if err != nil {
-        t.Error(err)
-    }
-    defer remainder.Free()
-
-    err = remainder.Mod(modbn1, modbn2)
+    err = modbn1.Mod(modbn1, modbn2)
     if err != nil {
         t.Error(err)
     }

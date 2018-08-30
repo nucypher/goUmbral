@@ -18,7 +18,6 @@ package math
 
 import (
     "errors"
-    "log"
     "golang.org/x/crypto/blake2b"
     "github.com/nucypher/goUmbral/openssl"
 )
@@ -33,7 +32,7 @@ type ModBigNum struct {
    Curve *openssl.Curve
 }
 
-func GetNewModBN(cNum openssl.BigNum, curve *openssl.Curve) (*ModBigNum, error) {
+func NewModBigNum(cNum openssl.BigNum, curve *openssl.Curve) (*ModBigNum, error) {
     // Return the ModBigNum only if the provided Bignum is within the order of the curve.
     if !openssl.BNIsWithinOrder(cNum, curve) {
         return nil, errors.New("The provided BIGNUM is not on the provided curve.")
@@ -68,7 +67,7 @@ func GenRandModBN(curve *openssl.Curve) (*ModBigNum, error) {
     return &ModBigNum{Bignum: newRandBN, Curve: curve}, nil
 }
 
-func Int2ModBN(num int, curve *openssl.Curve) (*ModBigNum, error) {
+func IntToModBN(num int, curve *openssl.Curve) (*ModBigNum, error) {
     newBN, err := openssl.IntToBN(num)
     if err != nil {
         return nil, err
@@ -80,7 +79,7 @@ func Int2ModBN(num int, curve *openssl.Curve) (*ModBigNum, error) {
     return &ModBigNum{Bignum: newBN, Curve: curve}, nil
 }
 
-func Hash2ModBN(bytes []byte, params UmbralParameters) (*ModBigNum, error) {
+func HashToModBN(bytes []byte, params *UmbralParameters) (*ModBigNum, error) {
     // Returns a ModBigNum based on provided data hashed by blake2b.
     hash := blake2b.Sum512(bytes)
     hashBN, err := openssl.BytesToBN(hash[:])
@@ -117,7 +116,7 @@ func Hash2ModBN(bytes []byte, params UmbralParameters) (*ModBigNum, error) {
     return &ModBigNum{Bignum: result, Curve: params.Curve}, nil
 }
 
-func Bytes2ModBN(data []byte, curve *openssl.Curve) (*ModBigNum, error) {
+func BytesToModBN(data []byte, curve *openssl.Curve) (*ModBigNum, error) {
     // Returns the ModBigNum associated with the bytes-converted bignum
     // provided by the data argument.
     if len(data) == 0 {
@@ -149,179 +148,169 @@ func (m ModBigNum) Compare(other *ModBigNum) int {
 }
 
 // ModBigNum.Pow() will perform (x^y) modulo the order of the curve of x and y.
-// It will then set z to the result of that operation and return it.
+// It will then set z to the result of that operation.
 //
 // x, y, and z must use the same curve and must be initialized.
 //
-// On error, Pow will log the error, and return nil.
-func (z *ModBigNum) Pow(x, y *ModBigNum) *ModBigNum {
+// Pow will return the error if one occurred, and nil otherwise.
+func (z *ModBigNum) Pow(x, y *ModBigNum) error {
     if !x.Curve.Equals(y.Curve) || !x.Curve.Equals(z.Curve) {
-        log.Print("ModBigNum Pow Error: The curves are not equal")
-        return nil
+        return errors.New("ModBigNum Pow Error: The curves are not equal")
     }
     ctx := openssl.NewBNCtx()
     defer openssl.FreeBNCtx(ctx)
 
     err := openssl.ModExpMontBN(z.Bignum, x.Bignum, y.Bignum, x.Curve.Order, ctx)
     if err != nil {
-        log.Print(err)
-        return nil
+        return err
     }
-    return z
+    return nil
 }
 
 // ModBigNum.Mul() will perform (x * y) modulo the order of the curve of x and y.
-// It will then set z to the result of that operation and return it.
+// It will then set z to the result of that operation.
 //
 // x, y, and z must use the same curve and must be initialized.
 //
-// On error, Mul will log the error, and return nil.
-func (z *ModBigNum) Mul(x, y *ModBigNum) *ModBigNum {
+// Mul will return the error if one occurred, and nil otherwise.
+func (z *ModBigNum) Mul(x, y *ModBigNum) error {
     if !x.Curve.Equals(y.Curve) || !x.Curve.Equals(z.Curve) {
-        log.Print("ModBigNum Mul Error: The curves are not equal")
-        return nil
+        return errors.New("ModBigNum Mul Error: The curves are not equal")
     }
     ctx := openssl.NewBNCtx()
     defer openssl.FreeBNCtx(ctx)
 
     err := openssl.ModMulBN(z.Bignum, x.Bignum, y.Bignum, x.Curve.Order, ctx)
     if err != nil {
-        log.Print(err)
-        return nil
+        return err
     }
-    return z
+    return nil
 }
 
 // ModBigNum.Div() will perform (x / y) modulo the order of the curve of x and y.
-// It will then set z to the result of that operation and return it.
+// It will then set z to the result of that operation.
 //
 // x, y, and z must use the same curve and must be initialized.
 //
-// On error, Div will log the error, and return nil.
-func (z *ModBigNum) Div(x, y *ModBigNum) *ModBigNum {
-    result := z.Invert(y)
-    if result == nil {
-        log.Print("ModBigNum Div Error: Invert Failed")
-        return nil
+// Div will return the error if one occurred, and nil otherwise.
+func (z *ModBigNum) Div(x, y *ModBigNum) error {
+    inv, err := x.Copy()
+    if err != nil {
+        return err
+    }
+    defer inv.Free()
+
+    err = inv.Invert(y)
+    if err != nil {
+        return err //errors.New("ModBigNum Div Error: Invert Failed")
     }
 
-    result = z.Mul(z, x)
-    if result == nil {
-        log.Print("ModBigNum Div Error: Mul Failed")
-        return nil
+    err = z.Mul(x, inv)
+    if err != nil {
+        return err //errors.New("ModBigNum Div Error: Mul Failed")
     }
 
-    return z
+    return nil
 }
 
 // ModBigNum.Add() will perform (x + y) modulo the order of the curve of x and y.
-// It will then set z to the result of that operation and return it.
+// It will then set z to the result of that operation.
 //
 // x, y, and z must use the same curve and must be initialized.
 //
-// On error, Add will log the error, and return nil.
-func (z *ModBigNum) Add(x, y *ModBigNum) *ModBigNum {
+// Add will return the error if one occurred, and nil otherwise.
+func (z *ModBigNum) Add(x, y *ModBigNum) error {
     if !x.Curve.Equals(y.Curve) || !x.Curve.Equals(z.Curve) {
-        log.Print("ModBigNum Add Error: The curves are not equal")
-        return nil
+        return errors.New("ModBigNum Add Error: The curves are not equal")
     }
     ctx := openssl.NewBNCtx()
     defer openssl.FreeBNCtx(ctx)
 
     err := openssl.ModAddBN(z.Bignum, x.Bignum, y.Bignum, x.Curve.Order, ctx)
     if err != nil {
-        log.Print(err)
-        return nil
+        return err
     }
-    return z
+    return nil
 }
 
 // ModBigNum.Sub() will perform (x - y) modulo the order of the curve of x and y.
-// It will then set z to the result of that operation and return it.
+// It will then set z to the result of that operation.
 //
 // x, y, and z must use the same curve and must be initialized.
 //
-// On error, Sub will log the error, and return nil.
-func (z *ModBigNum) Sub(x, y *ModBigNum) *ModBigNum {
+// Sub will return the error if one occurred, and nil otherwise.
+func (z *ModBigNum) Sub(x, y *ModBigNum) error {
     if !x.Curve.Equals(y.Curve) || !x.Curve.Equals(z.Curve) {
-        log.Print("ModBigNum Sub Error: The curves are not equal")
-        return nil
+        return errors.New("ModBigNum Sub Error: The curves are not equal")
     }
     ctx := openssl.NewBNCtx()
     defer openssl.FreeBNCtx(ctx)
 
     err := openssl.ModSubBN(z.Bignum, x.Bignum, y.Bignum, x.Curve.Order, ctx)
     if err != nil {
-        log.Print(err)
-        return nil
+        return err
     }
-    return z
+    return nil
 }
 
 // ModBigNum.Invert() computes (x*z)%m==1 where m is the order of the curve of x and z.
-// It will then set z to the result of that operation and return it.
+// It will then set z to the result of that operation.
 //
 // x and z must use the same curve and must be initialized.
 //
-// On error, Invert will log the error, and return nil.
-func (z *ModBigNum) Invert(x *ModBigNum) *ModBigNum {
+// Invert will return the error if one occurred, and nil otherwise.
+func (z *ModBigNum) Invert(x *ModBigNum) error {
     if !x.Curve.Equals(z.Curve) {
-        log.Print("ModBigNum Invert Error: The curves are not equal")
-        return nil
+        return errors.New("ModBigNum Invert Error: The curves are not equal")
     }
     ctx := openssl.NewBNCtx()
     defer openssl.FreeBNCtx(ctx)
 
     err := openssl.ModInvertBN(z.Bignum, x.Bignum, x.Curve.Order, ctx)
     if err != nil {
-        log.Print(err)
-        return nil
+        return err
     }
-    return z
+    return nil
 }
 
 // ModBigNum.Neg() computes the modular opposite (i. e., additive inverse) of x.
-// It will then set z to the result of that operation and return it.
+// It will then set z to the result of that operation.
 //
 // x and z must use the same curve and must be initialized.
 //
-// On error, Neg will log the error, and return nil.
-func (z *ModBigNum) Neg(x *ModBigNum) *ModBigNum {
+// Neg will return the error if one occurred, and nil otherwise.
+func (z *ModBigNum) Neg(x *ModBigNum) error {
     if !x.Curve.Equals(z.Curve) {
-        log.Print("ModBigNum Neg Error: The curves are not equal")
-        return nil
+        return errors.New("ModBigNum Neg Error: The curves are not equal")
     }
     ctx := openssl.NewBNCtx()
     defer openssl.FreeBNCtx(ctx)
 
     err := openssl.ModNegBN(z.Bignum, x.Bignum, x.Curve.Order, ctx)
     if err != nil {
-        log.Print(err)
-        return nil
+        return err
     }
-    return z
+    return nil
 }
 
 // ModBigNum.Mod() will perform (x % y).
-// It will then set z to the result of that operation and return it.
+// It will then set z to the result of that operation.
 //
 // x, y, and z must use the same curve and must be initialized.
 //
-// On error, Mod will log the error, and return nil.
-func (z *ModBigNum) Mod(x, y *ModBigNum) *ModBigNum {
+// Mod will return the error, and nil otherwise.
+func (z *ModBigNum) Mod(x, y *ModBigNum) error {
     if !x.Curve.Equals(y.Curve) || !x.Curve.Equals(z.Curve) {
-        log.Print("ModBigNum Mod Error: The curves are not equal")
-        return nil
+        return errors.New("ModBigNum Mod Error: The curves are not equal")
     }
     ctx := openssl.NewBNCtx()
     defer openssl.FreeBNCtx(ctx)
 
     err := openssl.ModNegBN(z.Bignum, x.Bignum, y.Bignum, ctx)
     if err != nil {
-        log.Print(err)
-        return nil
+        return err
     }
-    return z
+    return nil
 }
 
 func (m *ModBigNum) Copy() (*ModBigNum, error) {
@@ -334,5 +323,7 @@ func (m *ModBigNum) Copy() (*ModBigNum, error) {
 }
 
 func (m *ModBigNum) Free() {
-    openssl.FreeBigNum(m.Bignum)
+    if m != nil {
+        openssl.FreeBigNum(m.Bignum)
+    }
 }
