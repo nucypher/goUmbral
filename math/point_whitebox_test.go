@@ -138,7 +138,7 @@ func TestPointToFromAffine(t *testing.T) {
         t.Error(err)
     }
 
-    point2, err := Affine2Point(x, y, curve)
+    point2, err := AffineToPoint(x, y, curve)
     if err != nil {
         t.Error(err)
     }
@@ -173,7 +173,7 @@ func TestPointToFromBytes(t *testing.T) {
             t.Error(err)
         }
 
-        point2, err := Bytes2Point(bytes, curve)
+        point2, err := BytesToPoint(bytes, curve)
         if err != nil {
             t.Error(err)
         }
@@ -194,7 +194,7 @@ func TestPointToFromBytes(t *testing.T) {
             t.Error(err)
         }
 
-        point2, err := Bytes2Point(bytes, curve)
+        point2, err := BytesToPoint(bytes, curve)
         if err != nil {
             t.Error(err)
         }

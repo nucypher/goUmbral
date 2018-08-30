@@ -25,23 +25,21 @@ import (
     "github.com/nucypher/goUmbral/openssl"
 )
 
-/*
-Represents an OpenSSL EC_POINT.
-*/
+// Represents an OpenSSL EC_POINT with a specific eliptic curve.
 
 type Point struct {
    ECPoint openssl.ECPoint
    Curve *openssl.Curve
 }
 
+// Generate a new Point struct based on the arguments provided.
+//
+// If point is nil then GetNewPoint will generate a new opensslraphically secure
+// ECPoint and check for errors before returning the new Point.
+//
+// if point is nil AND the curve group is also nil then
+// GetNewPoint will fail and return the error.
 func NewPoint(point openssl.ECPoint, curve *openssl.Curve) (*Point, error) {
-    // Generate a new Point struct based on the arguments provided.
-    //
-    // If point is nil then GetNewPoint will generate a new opensslraphically secure
-    // ECPoint and check for errors before returning the new Point.
-    //
-    // if point is nil AND the curve group is also nil then
-    // GetNewPoint will fail and return the error.
     var err error = nil
     if point == nil {
         newPoint, err := GenRandPoint(curve)
@@ -53,9 +51,9 @@ func NewPoint(point openssl.ECPoint, curve *openssl.Curve) (*Point, error) {
     return &Point{point, curve}, err
 }
 
+// Returns the size (in bytes) of a compressed Point given a curve.
+// If no curve is provided, it returns 0.
 func PointLength(curve *openssl.Curve, isCompressed bool) uint {
-    // Returns the size (in bytes) of a compressed Point given a curve.
-    // If no curve is provided, it returns 0.
     if curve.Group == nil {
         return 0
     }
@@ -69,9 +67,9 @@ func PointLength(curve *openssl.Curve, isCompressed bool) uint {
     }
 }
 
+// Returns a Point struct with a cryptographically
+// secure EC_POINT based on the provided curve.
 func GenRandPoint(curve *openssl.Curve) (*Point, error) {
-    // Returns a Point struct with a cryptographically
-    // secure EC_POINT based on the provided curve.
     randPoint, err := openssl.NewECPoint(curve)
     if err != nil {
         return nil, err
@@ -95,10 +93,8 @@ func GenRandPoint(curve *openssl.Curve) (*Point, error) {
     return &Point{randPoint, curve}, nil
 }
 
-func Affine2Point(affineX, affineY *big.Int, curve *openssl.Curve) (*Point, error) {
-    /*
-    Returns a Point object from the given affine coordinates.
-    */
+// Returns a Point object from the given affine coordinates.
+func AffineToPoint(affineX, affineY *big.Int, curve *openssl.Curve) (*Point, error) {
     x, err := openssl.BigIntToBN(affineX)
     if err != nil {
         return nil, err
@@ -116,10 +112,8 @@ func Affine2Point(affineX, affineY *big.Int, curve *openssl.Curve) (*Point, erro
     return &Point{point, curve}, nil
 }
 
+// Returns an x and y coordinate of the Point as a Go big.Int.
 func (m Point) ToAffine() (*big.Int, *big.Int, error) {
-    /*
-    Returns an x and y coordinate of the Point as a Go big.Int.
-    */
     xBN, yBN, err := openssl.GetAffineCoordsFromECPoint(m.ECPoint, m.Curve)
     if err != nil {
         return nil, nil, err
@@ -138,7 +132,7 @@ func (m Point) ToAffine() (*big.Int, *big.Int, error) {
     return goX, goY, nil
 }
 
-func Bytes2Point(data []byte, curve *openssl.Curve) (*Point, error) {
+func BytesToPoint(data []byte, curve *openssl.Curve) (*Point, error) {
     if len(data) == 0 {
         return nil, errors.New("No bytes failure")
     }
@@ -188,15 +182,15 @@ func Bytes2Point(data []byte, curve *openssl.Curve) (*Point, error) {
         affineX.SetBytes(data[1:coordSize+1])
         affineY.SetBytes(data[1+coordSize:])
 
-        return Affine2Point(affineX, affineY, curve)
+        return AffineToPoint(affineX, affineY, curve)
     } else {
         return nil, errors.New("Invalid point serialization")
     }
 }
 
+// Returns the Point serialized as bytes.
+// It will return a compressed form if isCompressed is set to True.
 func (m Point) ToBytes(isCompressed bool) ([]byte, error) {
-    // Returns the Point serialized as bytes.
-    // It will return a compressed form if isCompressed is set to True.
     x, y, err := m.ToAffine()
     if err != nil {
         return nil, err
@@ -241,10 +235,13 @@ func (m *Point) Equals(other *Point) (bool, error) {
     return result, nil
 }
 
+// Point.Mul() will perform (x * y).
+// It will then set z to the result of that operation.
+//
+// x, y, and z must use the same curve and must be initialized.
+//
+// Mul will return the error if one occurred, and nil otherwise.
 func (z *Point) Mul(x *Point, y *ModBigNum) error {
-    /*
-    Performs a EC_POINT_mul on an EC_POINT and a BIGNUM.
-    */
     if !x.Curve.Equals(y.Curve) {
         return errors.New("The points do not share the same curve.")
     }
@@ -260,8 +257,16 @@ func (z *Point) Mul(x *Point, y *ModBigNum) error {
     return nil
 }
 
+// Point.Add() will perform (x + y).
+// It will then set z to the result of that operation.
+//
+// x, y, and z must use the same curve and must be initialized.
+//
+// Add will return the error if one occurred, and nil otherwise.
 func (z *Point) Add(x, y *Point) error {
-    // Performs an EC_POINT_add on two EC_POINTS.
+    if !x.Curve.Equals(y.Curve) {
+        return errors.New("The points do not share the same curve.")
+    }
 
     ctx := openssl.NewBNCtx()
     defer openssl.FreeBNCtx(ctx)
@@ -274,8 +279,18 @@ func (z *Point) Add(x, y *Point) error {
     return nil
 }
 
+// Point.Sub() will perform (x - y).
+// It will then set z to the result of that operation.
+//
+// x, y, and z must use the same curve and must be initialized.
+//
+// Sub will return the error if one occurred, and nil otherwise.
 func (z *Point) Sub(x, y *Point) error {
-    // Performs an subtraction on two EC_POINTS by adding by the inverse.
+    if !x.Curve.Equals(y.Curve) {
+        return errors.New("The points do not share the same curve.")
+    }
+
+    // Performs a subtraction on two EC_POINTS by adding by the inverse.
     inv, err := y.Copy()
     if err != nil {
         return err
@@ -295,6 +310,12 @@ func (z *Point) Sub(x, y *Point) error {
     return nil
 }
 
+// Point.Invert() will find the inverse of x.
+// It will then set z to the result of that operation.
+//
+// x must be initialized.
+//
+// Invert will return the error if one occurred, and nil otherwise.
 func (z *Point) Invert(x *Point) error {
     ctx := openssl.NewBNCtx()
     defer openssl.FreeBNCtx(ctx)
@@ -316,17 +337,16 @@ func (z *Point) Invert(x *Point) error {
     return nil
 }
 
+// Hashes arbitrary data into a valid EC point of the specified curve,
+// using the try-and-increment method.
+// It admits an optional label as an additional input to the hash function.
+// It uses BLAKE2b (with a digest size of 64 bytes) as the internal hash function.
+
+// WARNING: Do not use when the input data is secret, as this implementation is not
+// in constant time, and hence, it is not safe with respect to timing attacks.
+// TODO: Check how to uniformly generate ycoords. Currently, it only outputs points
+// where ycoord is even (i.e., starting with 0x02 in compressed notation)
 func UnsafeHashToPoint(data []byte, params *UmbralParameters, label []byte) (*Point, error) {
-    // Hashes arbitrary data into a valid EC point of the specified curve,
-    // using the try-and-increment method.
-    // It admits an optional label as an additional input to the hash function.
-    // It uses BLAKE2b (with a digest size of 64 bytes) as the internal hash function.
-
-    // WARNING: Do not use when the input data is secret, as this implementation is not
-    // in constant time, and hence, it is not safe with respect to timing attacks.
-    // TODO: Check how to uniformly generate ycoords. Currently, it only outputs points
-    // where ycoord is even (i.e., starting with 0x02 in compressed notation)
-
     max := uint32(math.Exp2(32) - 1)
 
     lenData := make([]byte, 4)
@@ -361,7 +381,7 @@ func UnsafeHashToPoint(data []byte, params *UmbralParameters, label []byte) (*Po
 
         compressedPoint := append(sign, hash[1:1 + params.Size]...)
 
-        point, err := Bytes2Point(compressedPoint, params.Curve)
+        point, err := BytesToPoint(compressedPoint, params.Curve)
 
         if err != nil {
             // TODO: Catching Exceptions

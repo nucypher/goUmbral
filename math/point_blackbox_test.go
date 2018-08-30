@@ -85,13 +85,13 @@ func TestPointOperations(t *testing.T) {
         t.Error(err)
     }
 
-    point1, err := math.Bytes2Point(first, curve)
+    point1, err := math.BytesToPoint(first, curve)
     if err != nil {
         t.Error(err)
     }
     defer point1.Free()
 
-    point2, err := math.Bytes2Point(second, curve)
+    point2, err := math.BytesToPoint(second, curve)
     if err != nil {
         t.Error(err)
     }
@@ -130,7 +130,7 @@ func TestPointOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            point3, err := math.Bytes2Point(tmp3, curve)
+            point3, err := math.BytesToPoint(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
@@ -155,7 +155,7 @@ func TestPointOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            point3, err := math.Bytes2Point(tmp3, curve)
+            point3, err := math.BytesToPoint(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
@@ -180,7 +180,7 @@ func TestPointOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            point3, err := math.Bytes2Point(tmp3, curve)
+            point3, err := math.BytesToPoint(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
@@ -205,7 +205,7 @@ func TestPointOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            point3, err := math.Bytes2Point(tmp3, curve)
+            point3, err := math.BytesToPoint(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
@@ -304,7 +304,7 @@ func TestUnsafeHashToPoint(t *testing.T) {
             t.Error(err)
         }
 
-        point2, err := math.Bytes2Point(tmp1, curve)
+        point2, err := math.BytesToPoint(tmp1, curve)
         if err != nil {
             t.Error(err)
         }

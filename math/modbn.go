@@ -22,10 +22,7 @@ import (
     "github.com/nucypher/goUmbral/openssl"
 )
 
-/*
-Represents an OpenSSL BIGNUM modulo the order of a curve. Some of these
-operations will only work with prime numbers
-*/
+// Represents an OpenSSL BIGNUM modulo the order of a curve.
 
 type ModBigNum struct {
    Bignum openssl.BigNum
@@ -34,7 +31,8 @@ type ModBigNum struct {
 
 func NewModBigNum(cNum openssl.BigNum, curve *openssl.Curve) (*ModBigNum, error) {
     if cNum != nil {
-        // Return the ModBigNum only if the provided Bignum is within the order of the curve.
+        // Return the ModBigNum only if the provided Bignum is within
+        // the order of the curve.
         if !openssl.BNIsWithinOrder(cNum, curve) {
             return nil, errors.New("The provided BIGNUM is not on the provided curve.")
         }
@@ -46,12 +44,9 @@ func ExpectedBytesLength(curve *openssl.Curve) {
     // TODO: Return the size of a modbn given the curve.
 }
 
+// Returns a ModBigNum with a cryptographically secure OpenSSL BIGNUM
+// based on the given curve.
 func GenRandModBN(curve *openssl.Curve) (*ModBigNum, error) {
-    /*
-    Returns a ModBigNum with a openssl.raphically secure OpenSSL BIGNUM
-    based on the given curve.
-    */
-
     // newRandBN needs to be from 1 inclusive to curve exclusive
     if curve.Order == nil {
         return nil, errors.New("The order of the curve is nil. Construct a valid curve first.")
@@ -81,8 +76,8 @@ func IntToModBN(num int, curve *openssl.Curve) (*ModBigNum, error) {
     return &ModBigNum{Bignum: newBN, Curve: curve}, nil
 }
 
+// Returns a ModBigNum based on provided data hashed by blake2b.
 func HashToModBN(bytes []byte, params *UmbralParameters) (*ModBigNum, error) {
-    // Returns a ModBigNum based on provided data hashed by blake2b.
     hash := blake2b.Sum512(bytes)
     hashBN, err := openssl.BytesToBN(hash[:])
     if err != nil {
@@ -118,9 +113,9 @@ func HashToModBN(bytes []byte, params *UmbralParameters) (*ModBigNum, error) {
     return &ModBigNum{Bignum: result, Curve: params.Curve}, nil
 }
 
+// Returns the ModBigNum associated with the bytes-converted bignum
+// provided by the data argument.
 func BytesToModBN(data []byte, curve *openssl.Curve) (*ModBigNum, error) {
-    // Returns the ModBigNum associated with the bytes-converted bignum
-    // provided by the data argument.
     if len(data) == 0 {
         return nil, errors.New("No bytes failure")
     }
