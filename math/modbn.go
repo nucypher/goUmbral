@@ -33,9 +33,11 @@ type ModBigNum struct {
 }
 
 func NewModBigNum(cNum openssl.BigNum, curve *openssl.Curve) (*ModBigNum, error) {
-    // Return the ModBigNum only if the provided Bignum is within the order of the curve.
-    if !openssl.BNIsWithinOrder(cNum, curve) {
-        return nil, errors.New("The provided BIGNUM is not on the provided curve.")
+    if cNum != nil {
+        // Return the ModBigNum only if the provided Bignum is within the order of the curve.
+        if !openssl.BNIsWithinOrder(cNum, curve) {
+            return nil, errors.New("The provided BIGNUM is not on the provided curve.")
+        }
     }
     return &ModBigNum{Bignum: cNum, Curve: curve}, nil
 }

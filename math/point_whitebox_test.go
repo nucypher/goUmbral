@@ -226,13 +226,13 @@ func TestPointMul(t *testing.T) {
     }
     defer r.Free()
 
-    rG, err := GetNewPoint(nil, curve)
+    rG, err := NewPoint(nil, curve)
     if err != nil {
         t.Error(err)
     }
     defer rG.Free()
 
-    err = rG.Mul(r, G)
+    err = rG.Mul(G, r)
     if err != nil {
         t.Error(err)
     }
@@ -257,7 +257,7 @@ func TestPointAdd(t *testing.T) {
     }
     defer point2.Free()
 
-    sum, err := GetNewPoint(nil, curve)
+    sum, err := NewPoint(nil, curve)
     if err != nil {
         t.Error(err)
     }
@@ -276,7 +276,7 @@ func TestPointSub(t *testing.T) {
     }
     defer curve.Free()
 
-    sum, err := GetNewPoint(nil, curve)
+    sum, err := NewPoint(nil, curve)
     if err != nil {
         t.Error(err)
     }
@@ -313,7 +313,7 @@ func TestPointInvert(t *testing.T) {
     }
     defer point.Free()
 
-    invPoint, err := GetNewPoint(nil, curve)
+    invPoint, err := NewPoint(nil, curve)
     if err != nil {
         t.Error(err)
     }

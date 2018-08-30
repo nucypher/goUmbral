@@ -170,7 +170,7 @@ func TestPointOperations(t *testing.T) {
                 t.Error("After subtraction, the points were not equal")
             }
         case "Multiplication":
-            err = tmp1.Mul(tmp4, tmp1)
+            err = tmp1.Mul(tmp1, tmp4)
             if err != nil {
                 t.Error(err)
             }

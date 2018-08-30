@@ -408,12 +408,6 @@ func TestPow(t *testing.T) {
         }
         defer modbn2.Free()
 
-        power, err := GetNewModBN(nil, curve)
-        if err != nil {
-            t.Error(err)
-        }
-        defer power.Free()
-
         // 2^5 % curve.Order
         err = modbn1.Pow(modbn1, modbn2)
         if err != nil {
@@ -441,8 +435,9 @@ func TestPow(t *testing.T) {
             t.Error(err)
         }
         defer modbn3.Free()
+        t.Log(openssl.BNToDecStr(modbn3.Bignum))
 
-        if !power.Equals(modbn3) {
+        if !modbn1.Equals(modbn3) {
             t.Error("power doesn't equal modbn3 which was converted from a Go big.Int")
         }
     })
@@ -453,11 +448,11 @@ func TestPow(t *testing.T) {
         }
         defer curve.Free()
 
-        modbn1, err := IntToModBN(2, curve)
+        power, err := IntToModBN(2, curve)
         if err != nil {
             t.Error(err)
         }
-        defer modbn1.Free()
+        defer power.Free()
 
         modbn2, err := IntToModBN(300, curve)
         if err != nil {
@@ -465,13 +460,12 @@ func TestPow(t *testing.T) {
         }
         defer modbn2.Free()
 
-        // 2^5 % curve.Order
-        err = modbn1.Pow(modbn1, modbn2)
+        err = power.Pow(power, modbn2)
         if err != nil {
             t.Error(err)
         }
 
-        t.Log(openssl.BNToDecStr(modbn1.Bignum))
+        t.Log(openssl.BNToDecStr(power.Bignum))
 
         goBN1 := big.NewInt(2)
         goBN2 := big.NewInt(300)
@@ -530,7 +524,7 @@ func TestMul(t *testing.T) {
     }
     defer modbn3.Free()
 
-    if !product.Equals(modbn3) {
+    if !modbn1.Equals(modbn3) {
         t.Error("product doesn't equal modbn3: 600")
     }
 }
@@ -590,7 +584,7 @@ func TestAdd(t *testing.T) {
     }
     defer modbn3.Free()
 
-    if !sum.Equals(modbn3) {
+    if !modbn1.Equals(modbn3) {
         t.Error("sum doesn't equal modbn3: 768")
     }
 }
@@ -625,7 +619,7 @@ func TestSub(t *testing.T) {
     }
     defer modbn3.Free()
 
-    if !diff.Equals(modbn3) {
+    if !modbn1.Equals(modbn3) {
         t.Error("diff doesn't equal modbn3: 768")
     }
 }

@@ -241,33 +241,32 @@ func (m *Point) Equals(other *Point) (bool, error) {
     return result, nil
 }
 
-func (m *Point) Mul(other *ModBigNum) error {
+func (z *Point) Mul(x *Point, y *ModBigNum) error {
     /*
     Performs a EC_POINT_mul on an EC_POINT and a BIGNUM.
     */
-    // TODO: How do we check all three?
-    if !m.Curve.Equals(scalar.Curve) {
+    if !x.Curve.Equals(y.Curve) {
         return errors.New("The points do not share the same curve.")
     }
 
     ctx := openssl.NewBNCtx()
     defer openssl.FreeBNCtx(ctx)
 
-    result := openssl.MulECP(m.Curve.Group, m.ECPoint, nil,
-        m.ECPoint, other.Bignum, ctx)
+    result := openssl.MulECP(x.Curve.Group, z.ECPoint, nil,
+        x.ECPoint, y.Bignum, ctx)
     if result != nil {
         return result
     }
     return nil
 }
 
-func (m *Point) Add(other *Point) error {
+func (z *Point) Add(x, y *Point) error {
     // Performs an EC_POINT_add on two EC_POINTS.
 
     ctx := openssl.NewBNCtx()
     defer openssl.FreeBNCtx(ctx)
 
-    result := openssl.AddECP(m.Curve.Group, m.ECPoint, m.ECPoint, other.ECPoint, ctx)
+    result := openssl.AddECP(x.Curve.Group, z.ECPoint, x.ECPoint, y.ECPoint, ctx)
     if result != nil {
         return result
     }
@@ -275,20 +274,20 @@ func (m *Point) Add(other *Point) error {
     return nil
 }
 
-func (m *Point) Sub(other *Point) error {
+func (z *Point) Sub(x, y *Point) error {
     // Performs an subtraction on two EC_POINTS by adding by the inverse.
-    tmp, err := other.Copy()
+    inv, err := y.Copy()
     if err != nil {
         return err
     }
     defer inv.Free()
 
-    err = inv.Invert(p2)
+    err = inv.Invert(y)
     if err != nil {
         return err
     }
 
-    err = m.Add(p1, inv)
+    err = z.Add(x, inv)
     if err != nil {
         return err
     }
@@ -296,18 +295,23 @@ func (m *Point) Sub(other *Point) error {
     return nil
 }
 
-func (m *Point) Invert() error {
+func (z *Point) Invert(x *Point) error {
     ctx := openssl.NewBNCtx()
     defer openssl.FreeBNCtx(ctx)
 
-    result := openssl.InvertECP(m.Curve.Group, m.ECPoint, ctx)
+    inv, err := x.Copy()
+    if err != nil {
+        return err
+    }
+
+    result := openssl.InvertECP(x.Curve.Group, inv.ECPoint, ctx)
     if result != nil {
         return result
     }
-
-    // Swap ECPoints between m and inv
-    m.Free()
-    m.ECPoint = inv.ECPoint
+    if z.ECPoint != nil {
+        openssl.FreeECPoint(z.ECPoint)
+    }
+    z.ECPoint = inv.ECPoint
 
     return nil
 }
