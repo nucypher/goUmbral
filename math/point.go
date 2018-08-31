@@ -69,6 +69,9 @@ func PointLength(curve *openssl.Curve, isCompressed bool) uint {
 
 // Returns a Point struct with a cryptographically
 // secure EC_POINT based on the provided curve.
+//
+// This operation isn't safe unless you know the
+// discrete log of the generated Point.
 func GenRandPoint(curve *openssl.Curve) (*Point, error) {
     randPoint, err := openssl.NewECPoint(curve)
     if err != nil {
