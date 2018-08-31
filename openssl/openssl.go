@@ -187,6 +187,7 @@ func TmpBNMontCTX(modulus BigNum) (BNMontCtx, error) {
     result := C.BN_MONT_CTX_set(montCtx, modulus, ctx)
     if result != 1 {
         // Set Montgomery CTX With Modulus Failed.
+        defer FreeBNMontCtx(montCtx)
         return nil, NewOpenSSLError()
     }
     return montCtx, nil
