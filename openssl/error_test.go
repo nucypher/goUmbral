@@ -14,7 +14,33 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with goUmbral. If not, see <https://www.gnu.org/licenses/>.
-package umbral
+package openssl
 
-// #cgo LDFLAGS: -lcrypto
-import "C"
+import (
+    "testing"
+)
+
+func TestError(t *testing.T) {
+    bn1, err := IntToBN(0)
+    if err != nil {
+        t.Error(err)
+    }
+    bn2, err := IntToBN(5)
+    if err != nil {
+        t.Error(err)
+    }
+
+    bn3 := NewBigNum()
+
+    err = SubBN(bn3, bn1, bn2)
+    if err != nil {
+        t.Log(err)
+    }
+
+    bn4 := NewBigNum()
+
+    err = RandRangeBN(bn4, bn3)
+    if err == nil {
+        t.Error("Should have returned error: 'OpenSSL FATAL Error: 307a073:bignum routines:BN_rand_range:invalid range'")
+    }
+}

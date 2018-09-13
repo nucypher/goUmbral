@@ -14,7 +14,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with goUmbral. If not, see <https://www.gnu.org/licenses/>.
-package umbral
+package openssl
 
 import (
     "testing"
@@ -23,13 +23,19 @@ import (
 )
 
 func TestIntToBigNum(t *testing.T) {
-    bigboi1 := IntToBN(10)
+    bigboi1, err := IntToBN(10)
+    if err != nil {
+        t.Error(err)
+    }
     defer FreeBigNum(bigboi1)
 
-    bigboi2 := IntToBN(1000)
+    bigboi2, err := IntToBN(1000)
+    if err != nil {
+        t.Error(err)
+    }
     defer FreeBigNum(bigboi2)
 
-    test1 := CompareBN(bigboi1, bigboi2)
+    test1 := CmpBN(bigboi1, bigboi2)
     if test1 >= 0 {
         t.Error("Got:",
             test1,
@@ -38,10 +44,13 @@ func TestIntToBigNum(t *testing.T) {
             BNToDecStr(bigboi2))
     }
 
-    bigboi3 := IntToBN(10000)
+    bigboi3, err := IntToBN(10000)
+    if err != nil {
+        t.Error(err)
+    }
     defer FreeBigNum(bigboi3)
 
-    test2 := CompareBN(bigboi2, bigboi3)
+    test2 := CmpBN(bigboi2, bigboi3)
     if test2 >= 0 {
         t.Error("Got:",
             test2,
@@ -50,7 +59,7 @@ func TestIntToBigNum(t *testing.T) {
             BNToDecStr(bigboi3))
     }
 
-    test3 := CompareBN(bigboi3, bigboi2)
+    test3 := CmpBN(bigboi3, bigboi2)
     if test3 <= 0 {
         t.Error("Got:",
             test3,
@@ -59,7 +68,7 @@ func TestIntToBigNum(t *testing.T) {
             BNToDecStr(bigboi2))
     }
 
-    test4 := CompareBN(bigboi3, bigboi1)
+    test4 := CmpBN(bigboi3, bigboi1)
     if test4 <= 0 {
         t.Error("Got:",
             test4,
@@ -74,16 +83,25 @@ func TestBigIntToBigNumWithSmallInts(t *testing.T) {
     y := big.NewInt(100)
     z := big.NewInt(1000)
 
-    bigx := BigIntToBN(x)
-    bigy := BigIntToBN(y)
-    bigz := BigIntToBN(z)
+    bigx, err := BigIntToBN(x)
+    if err != nil {
+        t.Error(err)
+    }
+    bigy, err := BigIntToBN(y)
+    if err != nil {
+        t.Error(err)
+    }
+    bigz, err := BigIntToBN(z)
+    if err != nil {
+        t.Error(err)
+    }
 
     defer FreeBigNum(bigx)
     defer FreeBigNum(bigy)
     defer FreeBigNum(bigz)
 
     // Tests 1 and 2 should both be less than comparisons.
-    test1 := CompareBN(bigx, bigy)
+    test1 := CmpBN(bigx, bigy)
 
     if test1 >= 0 {
         t.Error("Got:",
@@ -93,7 +111,7 @@ func TestBigIntToBigNumWithSmallInts(t *testing.T) {
             BNToDecStr(bigy))
     }
 
-    test2 := CompareBN(bigy, bigz)
+    test2 := CmpBN(bigy, bigz)
 
     if test2 >= 0 {
         t.Error("Got:",
@@ -104,7 +122,7 @@ func TestBigIntToBigNumWithSmallInts(t *testing.T) {
     }
 
     // Tests 3 and 4 should both be greater than comparisons.
-    test3 := CompareBN(bigy, bigx)
+    test3 := CmpBN(bigy, bigx)
 
     if test3 <= 0 {
         t.Error("Got:",
@@ -114,7 +132,7 @@ func TestBigIntToBigNumWithSmallInts(t *testing.T) {
             BNToDecStr(bigx))
     }
 
-    test4 := CompareBN(bigz, bigy)
+    test4 := CmpBN(bigz, bigy)
 
     if test4 <= 0 {
         t.Error("Got:",
@@ -126,10 +144,13 @@ func TestBigIntToBigNumWithSmallInts(t *testing.T) {
 
     // Test 5 should be an equal to comparison.
     x2 := big.NewInt(10)
-    bigx2 := BigIntToBN(x2)
+    bigx2, err := BigIntToBN(x2)
+    if err != nil {
+        t.Error(err)
+    }
     defer FreeBigNum(bigx2)
 
-    test5 := CompareBN(bigx, bigx2)
+    test5 := CmpBN(bigx, bigx2)
     if test5 != 0 {
         t.Error("Got:",
             test5,
@@ -141,23 +162,40 @@ func TestBigIntToBigNumWithSmallInts(t *testing.T) {
 
 func TestBigIntToBigNumWithMul(t *testing.T) {
     x := big.NewInt(10)
-    bigx := BigIntToBN(x)
+    bigx, err := BigIntToBN(x)
+    if err != nil {
+        t.Error(err)
+    }
     defer FreeBigNum(bigx)
 
     hugeboi := big.NewInt(math.MaxInt64)
-    cHugeboi := BigIntToBN(hugeboi)
+    cHugeboi, err := BigIntToBN(hugeboi)
+    if err != nil {
+        t.Error(err)
+    }
     defer FreeBigNum(cHugeboi)
 
     // Max int64 * 10
-    cBiggerboi := MultiplyBN(cHugeboi, bigx)
+    cBiggerboi := NewBigNum()
     defer FreeBigNum(cBiggerboi)
+
+    ctx := NewBNCtx()
+    defer FreeBNCtx(ctx)
+
+    err = MulBN(cBiggerboi, cHugeboi, bigx, ctx)
+    if err != nil {
+        t.Error(err)
+    }
 
     biggerboi := hugeboi.Mul(hugeboi, x)
 
-    biggerboiConverted := BigIntToBN(biggerboi)
+    biggerboiConverted, err := BigIntToBN(biggerboi)
+    if err != nil {
+        t.Error(err)
+    }
     defer FreeBigNum(biggerboiConverted)
 
-    test1 := CompareBN(cBiggerboi, biggerboiConverted)
+    test1 := CmpBN(cBiggerboi, biggerboiConverted)
     if test1 != 0 {
         t.Error("Got:",
             test1,
@@ -171,15 +209,26 @@ func TestRandomRange(t *testing.T) {
     max := big.NewInt(math.MaxInt64)
     min := big.NewInt(0)
 
-    cMax := BigIntToBN(max)
-    cMin := BigIntToBN(min)
+    cMax, err := BigIntToBN(max)
+    if err != nil {
+        t.Error(err)
+    }
+    cMin, err := BigIntToBN(min)
+    if err != nil {
+        t.Error(err)
+    }
     defer FreeBigNum(cMax)
     defer FreeBigNum(cMin)
 
-    cRand := RandRangeBN(cMax)
+    cRand := NewBigNum()
     defer FreeBigNum(cRand)
 
-    test1 := CompareBN(cMin, cRand)
+    err = RandRangeBN(cRand, cMax)
+    if err != nil {
+        t.Error(err)
+    }
+
+    test1 := CmpBN(cMin, cRand)
     // The minimum is inclusive, so zero is possible to be equal to.
     if test1 > 0 {
         t.Error("Got:",
@@ -189,7 +238,7 @@ func TestRandomRange(t *testing.T) {
             BNToDecStr(cRand))
     }
 
-    test2 := CompareBN(cRand, cMax)
+    test2 := CmpBN(cRand, cMax)
     // The maximum is exclusive, so max is impossible to be equal to.
     if test2 >= 0 {
         t.Error("Got:",

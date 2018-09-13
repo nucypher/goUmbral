@@ -14,25 +14,26 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with goUmbral. If not, see <https://www.gnu.org/licenses/>.
-package umbral
+package math
 
 import (
     "testing"
+    "github.com/nucypher/goUmbral/openssl"
 )
 
 func TestNewPoint(t *testing.T) {
     t.Run("point provided", func(t *testing.T) {
-        curve, err := GetNewCurve(SECP256R1)
+        curve, err := openssl.NewCurve(openssl.SECP256R1)
         if err != nil {
             t.Error(err)
         }
         defer curve.Free()
 
-        ecPoint, err := GetNewECPoint(curve)
+        ecPoint, err := openssl.NewECPoint(curve)
         if err != nil {
             t.Error(err)
         }
-        point, err := GetNewPoint(ecPoint, curve)
+        point, err := NewPoint(ecPoint, curve)
         if err != nil {
             t.Error(err)
         }
@@ -43,13 +44,13 @@ func TestNewPoint(t *testing.T) {
         }
     })
     t.Run("point nil", func(t *testing.T) {
-        curve, err := GetNewCurve(SECP256R1)
+        curve, err := openssl.NewCurve(openssl.SECP256R1)
         if err != nil {
             t.Error(err)
         }
         defer curve.Free()
 
-        point, err := GetNewPoint(nil, curve)
+        point, err := NewPoint(nil, curve)
         if err != nil {
             t.Error(err)
         }
@@ -60,31 +61,31 @@ func TestNewPoint(t *testing.T) {
         }
     })
     t.Run("curve group nil", func(t *testing.T) {
-        curve, err := GetNewCurve(SECP256R1)
+        curve, err := openssl.NewCurve(openssl.SECP256R1)
         if err != nil {
             t.Error(err)
         }
         // Setting the EC_GROUP to nil should cause this to fail.
         curve.Group = nil
-        _, err = GetNewPoint(nil, curve)
+        _, err = NewPoint(nil, curve)
         if err == nil {
             t.Error("Should have returned an error: 'New EC Point Failure'")
         }
     })
     t.Run("curve order nil", func(t *testing.T) {
-        curve, err := GetNewCurve(SECP256R1)
+        curve, err := openssl.NewCurve(openssl.SECP256R1)
         if err != nil {
             t.Error(err)
         }
         // Setting the order of the curve to nil should cause this to fail.
         curve.Order = nil
-        _, err = GetNewPoint(nil, curve)
+        _, err = NewPoint(nil, curve)
         if err == nil {
             t.Error("Should have returned an error: The order of the curve is nil")
         }
     })
     t.Run("curve nil", func(t *testing.T) {
-        curve, err := GetNewCurve(SECP256R1)
+        curve, err := openssl.NewCurve(openssl.SECP256R1)
         if err != nil {
             t.Error(err)
         }
@@ -93,7 +94,7 @@ func TestNewPoint(t *testing.T) {
         // Setting everything else to nil should still succeed.
         curve.NID = 0
         curve.Generator = nil
-        point, err := GetNewPoint(nil, curve)
+        point, err := NewPoint(nil, curve)
         if err != nil {
             t.Error(err)
         }
@@ -102,7 +103,7 @@ func TestNewPoint(t *testing.T) {
 }
 
 func TestGenRandPoint(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
@@ -120,7 +121,7 @@ func TestGenRandPoint(t *testing.T) {
 }
 
 func TestPointToFromAffine(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
@@ -137,7 +138,7 @@ func TestPointToFromAffine(t *testing.T) {
         t.Error(err)
     }
 
-    point2, err := Affine2Point(x, y, curve)
+    point2, err := AffineToPoint(x, y, curve)
     if err != nil {
         t.Error(err)
     }
@@ -154,7 +155,7 @@ func TestPointToFromAffine(t *testing.T) {
 }
 
 func TestPointToFromBytes(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
@@ -172,7 +173,7 @@ func TestPointToFromBytes(t *testing.T) {
             t.Error(err)
         }
 
-        point2, err := Bytes2Point(bytes, curve)
+        point2, err := BytesToPoint(bytes, curve)
         if err != nil {
             t.Error(err)
         }
@@ -193,7 +194,7 @@ func TestPointToFromBytes(t *testing.T) {
             t.Error(err)
         }
 
-        point2, err := Bytes2Point(bytes, curve)
+        point2, err := BytesToPoint(bytes, curve)
         if err != nil {
             t.Error(err)
         }
@@ -211,7 +212,7 @@ func TestPointToFromBytes(t *testing.T) {
 }
 
 func TestPointMul(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
@@ -225,20 +226,20 @@ func TestPointMul(t *testing.T) {
     }
     defer r.Free()
 
-    rG, err := GetNewPoint(nil, curve)
+    rG, err := NewPoint(nil, curve)
     if err != nil {
         t.Error(err)
     }
     defer rG.Free()
 
-    err = rG.Mul(r, G)
+    err = rG.Mul(G, r)
     if err != nil {
         t.Error(err)
     }
 }
 
 func TestPointAdd(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
@@ -256,7 +257,7 @@ func TestPointAdd(t *testing.T) {
     }
     defer point2.Free()
 
-    sum, err := GetNewPoint(nil, curve)
+    sum, err := NewPoint(nil, curve)
     if err != nil {
         t.Error(err)
     }
@@ -269,13 +270,13 @@ func TestPointAdd(t *testing.T) {
 }
 
 func TestPointSub(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
     defer curve.Free()
 
-    sum, err := GetNewPoint(nil, curve)
+    sum, err := NewPoint(nil, curve)
     if err != nil {
         t.Error(err)
     }
@@ -300,7 +301,7 @@ func TestPointSub(t *testing.T) {
 }
 
 func TestPointInvert(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
@@ -312,7 +313,7 @@ func TestPointInvert(t *testing.T) {
     }
     defer point.Free()
 
-    invPoint, err := GetNewPoint(nil, curve)
+    invPoint, err := NewPoint(nil, curve)
     if err != nil {
         t.Error(err)
     }
@@ -325,13 +326,13 @@ func TestPointInvert(t *testing.T) {
 }
 
 func TestUnsafeHashToPoint(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
     defer curve.Free()
 
-    params, err := GetNewUmbralParameters(curve)
+    params, err := NewUmbralParameters(curve)
     if err != nil {
         t.Error(err)
     }
@@ -346,7 +347,7 @@ func TestUnsafeHashToPoint(t *testing.T) {
 }
 
 func TestPointCopy(t *testing.T) {
-    curve, err := GetNewCurve(SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }

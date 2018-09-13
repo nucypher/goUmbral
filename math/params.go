@@ -14,19 +14,20 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with goUmbral. If not, see <https://www.gnu.org/licenses/>.
-package umbral
+package math
 
-// #include "shim.h"
-import "C"
+import (
+    "github.com/nucypher/goUmbral/openssl"
+)
 
 type UmbralParameters struct {
-    Curve Curve
+    Curve *openssl.Curve
     Size uint
-    G Point
-    U Point
+    G *Point
+    U *Point
 }
 
-func GetNewUmbralParameters(curve Curve) (UmbralParameters, error) {
+func NewUmbralParameters(curve *openssl.Curve) (*UmbralParameters, error) {
     var params UmbralParameters
     params.Curve = curve
     params.Size = curve.FieldOrderSize()
@@ -34,21 +35,21 @@ func GetNewUmbralParameters(curve Curve) (UmbralParameters, error) {
     params.G = GetGeneratorFromCurve(curve)
     gBytes, err := params.G.ToBytes(true)
     if err != nil {
-        return UmbralParameters{}, err
+        return nil, err
     }
 
     parametersSeed := []byte("NuCypher/UmbralParameters/")
 
     parametersSeed = append(parametersSeed, byte('u'))
 
-    params.U, err = UnsafeHashToPoint(gBytes, params, parametersSeed)
+    params.U, err = UnsafeHashToPoint(gBytes, &params, parametersSeed)
     if err != nil {
-        return UmbralParameters{}, err
+        return nil, err
     }
-    return params, nil
+    return &params, nil
 }
 
-func (m UmbralParameters) Equals(other UmbralParameters) bool {
+func (m *UmbralParameters) Equals(other *UmbralParameters) bool {
     // TODO: This is not comparing the order, which currently is an OpenSSL pointer
 
     eCurve := m.Curve.Equals(other.Curve)

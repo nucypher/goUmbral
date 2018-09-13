@@ -14,54 +14,57 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with goUmbral. If not, see <https://www.gnu.org/licenses/>.
-package umbral_test
+package math_test
 
 import (
     "testing"
     "encoding/json"
     "encoding/hex"
     "io/ioutil"
-    "github.com/nucypher/goUmbral/umbral"
+    "github.com/nucypher/goUmbral/math"
+    "github.com/nucypher/goUmbral/openssl"
 )
 
-type ModBNOps struct {
+type PointOps struct {
     Name string `json:"name"`
     Params string `json:"params"`
-    FirstOp string `json:"first operand"`
-    SecondOp string `json:"second operand"`
+    FirstOp string `json:"first Point operand"`
+    SecondOp string `json:"second Point operand"`
+    CurveBNOp string `json:"CurveBN operand"`
     Vectors []Vector `json:"vectors"`
 }
 
-type HashOps struct {
+type Vector struct{
+    Op string `json:"operation"`
+    Result string `json:"result"`
+}
+
+type UnsafeOps struct {
     Name string `json:"name"`
     Params string `json:"params"`
-    Vectors []HVector `json:"vectors"`
+    Vectors []UVector `json:"vectors"`
 }
 
-type HVector struct{
-    Input []Input `json:"input"`
-    Output string `json:"output"`
+type UVector struct{
+    Data string `json:"data"`
+    Label string `json:"label"`
+    Point string `json:"point"`
 }
 
-type Input struct {
-    Class string `json:"class"`
-    Bytes string `json:"bytes"`
-}
-
-func TestModBNOperations(t *testing.T) {
-    data, err := ioutil.ReadFile("../vectors/vectors_curvebn_operations.json")
+func TestPointOperations(t *testing.T) {
+    data, err := ioutil.ReadFile("../vectors/vectors_point_operations.json")
     if err != nil {
         t.Error(err)
     }
 
-    var pops ModBNOps
+    var pops PointOps
     err = json.Unmarshal(data, &pops)
 
     if err != nil {
         t.Error(err)
     }
 
-    curve, err := umbral.GetNewCurve(umbral.SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
@@ -77,25 +80,41 @@ func TestModBNOperations(t *testing.T) {
         t.Error(err)
     }
 
-    modbn1, err := umbral.Bytes2ModBN(first, curve)
+    third, err := hex.DecodeString(pops.CurveBNOp)
     if err != nil {
         t.Error(err)
     }
-    defer modbn1.Free()
 
-    modbn2, err := umbral.Bytes2ModBN(second, curve)
+    point1, err := math.BytesToPoint(first, curve)
     if err != nil {
         t.Error(err)
     }
-    defer modbn2.Free()
+    defer point1.Free()
+
+    point2, err := math.BytesToPoint(second, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer point2.Free()
+
+    modbn, err := math.BytesToModBN(third, curve)
+    if err != nil {
+        t.Error(err)
+    }
+    defer modbn.Free()
 
     for _, k := range pops.Vectors {
-        tmp1, err := modbn1.Copy()
+        tmp1, err := point1.Copy()
         if err != nil {
             t.Error(err)
         }
 
-        tmp2, err := modbn2.Copy()
+        tmp2, err := point2.Copy()
+        if err != nil {
+            t.Error(err)
+        }
+
+        tmp4, err := modbn.Copy()
         if err != nil {
             t.Error(err)
         }
@@ -106,20 +125,24 @@ func TestModBNOperations(t *testing.T) {
             if err != nil {
                 t.Error(err)
             }
-
             tmp3, err := hex.DecodeString(k.Result)
             if err != nil {
                 t.Error(err)
             }
 
-            modbn3, err := umbral.Bytes2ModBN(tmp3, curve)
+            point3, err := math.BytesToPoint(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
-            defer modbn3.Free()
+            defer point3.Free()
 
-            if !tmp1.Equals(modbn3) {
-                t.Error("After adding, the modbns were not equal")
+            equ, err := tmp1.Equals(point3)
+            if err != nil {
+                t.Error(err)
+            }
+
+            if !equ {
+                t.Error("After adding, the points were not equal")
             }
         case "Subtraction":
             err = tmp1.Sub(tmp1, tmp2)
@@ -132,17 +155,22 @@ func TestModBNOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            modbn3, err := umbral.Bytes2ModBN(tmp3, curve)
+            point3, err := math.BytesToPoint(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
-            defer modbn3.Free()
+            defer point3.Free()
 
-            if !tmp1.Equals(modbn3) {
-                t.Error("After subtraction, the modbns were not equal")
+            equ, err := tmp1.Equals(point3)
+            if err != nil {
+                t.Error(err)
+            }
+
+            if !equ {
+                t.Error("After subtraction, the points were not equal")
             }
         case "Multiplication":
-            err = tmp1.Mul(tmp1, tmp2)
+            err = tmp1.Mul(tmp1, tmp4)
             if err != nil {
                 t.Error(err)
             }
@@ -152,54 +180,19 @@ func TestModBNOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            modbn3, err := umbral.Bytes2ModBN(tmp3, curve)
+            point3, err := math.BytesToPoint(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
-            defer modbn3.Free()
+            defer point3.Free()
 
-            if !tmp1.Equals(modbn3) {
-                t.Error("After multiplication, the modbns were not equal")
-            }
-        case "Division":
-            err = tmp1.Div(tmp1, tmp2)
+            equ, err := tmp1.Equals(point3)
             if err != nil {
                 t.Error(err)
             }
 
-            tmp3, err := hex.DecodeString(k.Result)
-            if err != nil {
-                t.Error(err)
-            }
-
-            modbn3, err := umbral.Bytes2ModBN(tmp3, curve)
-            if err != nil {
-                t.Error(err)
-            }
-            defer modbn3.Free()
-
-            if !tmp1.Equals(modbn3) {
-                t.Error("After division, the modbns were not equal")
-            }
-        case "Pow":
-            err = tmp1.Pow(tmp1, tmp2)
-            if err != nil {
-                t.Error(err)
-            }
-
-            tmp3, err := hex.DecodeString(k.Result)
-            if err != nil {
-                t.Error(err)
-            }
-
-            modbn3, err := umbral.Bytes2ModBN(tmp3, curve)
-            if err != nil {
-                t.Error(err)
-            }
-            defer modbn3.Free()
-
-            if !tmp1.Equals(modbn3) {
-                t.Error("After exponentiating, the modbns were not equal")
+            if !equ {
+                t.Error("After multiplication, the points were not equal")
             }
         case "Inversion":
             err = tmp1.Invert(tmp1)
@@ -212,17 +205,22 @@ func TestModBNOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            modbn3, err := umbral.Bytes2ModBN(tmp3, curve)
+            point3, err := math.BytesToPoint(tmp3, curve)
             if err != nil {
                 t.Error(err)
             }
-            defer modbn3.Free()
+            defer point3.Free()
 
-            if !tmp1.Equals(modbn3) {
-                t.Error("After inverting, the modbns were not equal")
+            equ, err := tmp1.Equals(point3)
+            if err != nil {
+                t.Error(err)
             }
-        case "Neg":
-            err = tmp1.Neg(tmp1)
+
+            if !equ {
+                t.Error("After inverting, the points were not equal")
+            }
+        case "To_affine.X":
+            x, _, err := tmp1.ToAffine()
             if err != nil {
                 t.Error(err)
             }
@@ -232,14 +230,28 @@ func TestModBNOperations(t *testing.T) {
                 t.Error(err)
             }
 
-            modbn3, err := umbral.Bytes2ModBN(tmp3, curve)
+            xRes := openssl.BytesToBigInt(tmp3)
+
+            res := x.Cmp(xRes)
+            if res != 0 {
+                t.Error("Affine x was not equal.")
+            }
+        case "To_affine.Y":
+            _, y, err := tmp1.ToAffine()
             if err != nil {
                 t.Error(err)
             }
-            defer modbn3.Free()
 
-            if !tmp1.Equals(modbn3) {
-                t.Error("After negating, the modbns were not equal")
+            tmp3, err := hex.DecodeString(k.Result)
+            if err != nil {
+                t.Error(err)
+            }
+
+            yRes := openssl.BytesToBigInt(tmp3)
+
+            res := y.Cmp(yRes)
+            if res != 0 {
+                t.Error("Affine y was not equal.")
             }
         default:
         }
@@ -248,58 +260,63 @@ func TestModBNOperations(t *testing.T) {
     }
 }
 
-func TestHash2ModBN(t *testing.T) {
-    data, err := ioutil.ReadFile("../vectors/vectors_curvebn_hash.json")
+func TestUnsafeHashToPoint(t *testing.T) {
+    data, err := ioutil.ReadFile("../vectors/vectors_unsafe_hash_to_point.json")
     if err != nil {
         t.Error(err)
     }
 
-    var pops HashOps
+    var pops UnsafeOps
     err = json.Unmarshal(data, &pops)
     if err != nil {
         t.Error(err)
     }
 
-    curve, err := umbral.GetNewCurve(umbral.SECP256K1)
+    curve, err := openssl.NewCurve(openssl.SECP256K1)
     if err != nil {
         t.Error(err)
     }
     defer curve.Free()
 
-    params, err := umbral.GetNewUmbralParameters(curve)
+    params, err := math.NewUmbralParameters(curve)
     if err != nil {
         t.Error(err)
     }
 
     for _, k := range pops.Vectors {
-        var data []byte
-        for _, m := range k.Input {
-            bytes, err := hex.DecodeString(m.Bytes)
-            if err != nil {
-                t.Error(err)
-            }
-            data = append(data, bytes...)
-        }
-
-        modbn1, err := umbral.Hash2ModBN(data, params)
-        if err != nil {
-            t.Error(err)
-        }
-        defer modbn1.Free()
-
-        tmp1, err := hex.DecodeString(k.Output)
+        data, err := hex.DecodeString(k.Data)
         if err != nil {
             t.Error(err)
         }
 
-        modbn2, err := umbral.Bytes2ModBN(tmp1, curve)
+        label, err := hex.DecodeString(k.Label)
         if err != nil {
             t.Error(err)
         }
-        defer modbn2.Free()
 
-        if !modbn1.Equals(modbn2) {
-            t.Error("After hashing:", k, ", the points were not equal")
+        point1, err := math.UnsafeHashToPoint(data, params, label)
+        if err != nil {
+            t.Error(err)
+        }
+
+        tmp1, err := hex.DecodeString(k.Point)
+        if err != nil {
+            t.Error(err)
+        }
+
+        point2, err := math.BytesToPoint(tmp1, curve)
+        if err != nil {
+            t.Error(err)
+        }
+        defer point2.Free()
+
+        equ, err := point1.Equals(point2)
+        if err != nil {
+            t.Error(err)
+        }
+
+        if !equ {
+            t.Error("After hashing, the points were not equal")
         }
     }
 }
