@@ -19,9 +19,12 @@ jobs:
           name: Setup report directory
           command: mkdir reports
       - run:
-          name: Run tests
-          command: go test -v github.com/nucypher/goUmbral/umbral/ --coverprofile=./reports/coverage.out 2>&1 | go-junit-report > ./reports/test-report.xml
+          name: Run ECC Arithmetic tests
+          command: go test -v github.com/nucypher/goUmbral/math/ --coverprofile=./reports/math-coverage.out 2>&1 | go-junit-report > ./reports/math-test-report.xml
+      - run:
+          name: Run OpenSSL tests
+          command: go test -v github.com/nucypher/goUmbral/openssl/ --coverprofile=./reports/openssl-coverage.out 2>&1 | go-junit-report > ./reports/openssl-test-report.xml
       - store_test_results:
-          path: ./reports/test-report.xml
+          path: ./reports/*test-report.xml
       - store_artifacts:
-          path: ./reports/coverage.out
+          path: ./reports/*coverage.out
